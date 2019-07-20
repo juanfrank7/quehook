@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Watch My Repo</title>
+    <link rel="stylesheet" type="text/css" href="main.css">
+    <link href="https://fonts.googleapis.com/css?family=Palanquin+Dark:400,500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/x-icon" href="favicon.ico"/>
+  </head>
+
+  <body>
+
+    <div class="container">
+
+      <h1>Watch My Repo 🔭</h1>
+
+      {{ if .Stats }}
+
+      <div class="dynamic stats">
+
+        <span class="stat-title">Repos watched:</span>
+
+        <span class="stat-value">{{ .Stats.Repos }}</span>
+
+        <br>
+
+        <span class="stat-title">Datapoints collected:</span>
+
+        <span class="stat-value">{{ .Stats.Datapoints }}</span>
+
+        <br>
+
+        <span class="stat-title">Watchers:</span>
+
+        <span class="stat-value">{{ .Stats.Watchers }}</span>
+
+      </div>
+
+      {{ end }}
+
+      <p>Temporary content</p>
+
+      <form method="POST" action="/submit">
+
+        <label></label>
+
+        <input class="input" type="text" name="repo">
+
+        <input type="submit" value="Submit">
+
+      </form>
+
+      <div class="mobile">
+
+        <p>Visit the full site on your laptop/desktop to submit your repo!</p>
+
+      </div>
+
+      {{ if .Name }}
+
+      <div class="dynamic response">{{ .Name }} submitted successfully</div>
+
+      {{ end }}
+
+      <div class="links">
+        <span><b><a href="/faq">FAQ</a></b></span>
+        <span><b><a href="https://github.com/forstmeier/watchmyrepo">GitHub</a></b></span>
+      </div>
+
+    </div>
+
+  </body>
+
+  <!-- <footer>
+    <p><b><a href="/faq">FAQ</a></b></p>
+  </footer> -->
+
+</html>

@@ -1,8 +1,6 @@
 ---
 name: Issue template
 about: This is a basic template for bugs/features
-title: ''
-labels: ''
 assignees: forstmeier
 
 ---
