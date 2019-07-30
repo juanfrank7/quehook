@@ -135,13 +135,23 @@ func Test_validateURL(t *testing.T) {
 func Test_submit(t *testing.T) {
 	tests := []struct {
 		desc    string
+		path    string
 		repos   []string
 		errSave error
 		errLoad error
 		output  string
 	}{
 		{
+			"incorrect filepath",
+			"/incorrect/",
+			nil,
+			errors.New("incorrect filepath"),
+			nil,
+			"<p><b>Status</b>: 500 <b>Error</b>: incorrect filepath</p>",
+		},
+		{
 			"error saving repo",
+			"../site/",
 			nil,
 			errors.New("error saving repo"),
 			nil,
@@ -149,6 +159,7 @@ func Test_submit(t *testing.T) {
 		},
 		{
 			"error loading repo",
+			"../site/",
 			nil,
 			nil,
 			errors.New("error loading repo"),
@@ -156,6 +167,7 @@ func Test_submit(t *testing.T) {
 		},
 		{
 			"successful request",
+			"../site/",
 			[]string{
 				"test-owner/test-repo",
 			},

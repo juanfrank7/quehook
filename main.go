@@ -70,7 +70,7 @@ func main() {
 	client := github.NewClient(nil)
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "2187"
+		port = "8080"
 	}
 	fmt.Println("PORT:", port)
 

@@ -1,21 +1,31 @@
+sudo: required
+services:
+  - docker
 language: go
 go:
   - 1.x
 before_install:
-  - 'go get github.com/mattn/goveralls'
-  - 'go get github.com/modocache/gover'
-  - 'go get -u golang.org/x/lint/golint'
+  - openssl aes-256-cbc -K $encrypted_83707b6e0d98_key -iv $encrypted_83707b6e0d98_iv
+    -in client-secret.json.enc -out client-secret.json -d
+  - go get github.com/mattn/goveralls
+  - go get github.com/modocache/gover
+  - go get -u golang.org/x/lint/golint
 install:
-  - 'go get -t -v ./...'
+  - go get -t -v ./...
 script:
-  - 'if [ -n "$(gofmt -l .)" ]; then echo "gofmt failed" ; exit 1 ; else echo "gofmt succeeded" ; fi'
-  - 'golint -set_exit_status'
-  - 'go build ./...'
-  - 'go test -v -race github.com/forstmeier/watchmyrepo/helpers -coverprofile=helpers.coverprofile'
-  - 'go test -v -race github.com/forstmeier/watchmyrepo/database -coverprofile=database.coverprofile'
-  - 'go test -v -race github.com/forstmeier/watchmyrepo/handlers -coverprofile=handlers.coverprofile'
-  - 'go test -v -race github.com/forstmeier/watchmyrepo -coverprofile=watchmyrepo.coverprofile'
-  - 'gover'
-  - '$GOPATH/bin/goveralls -coverprofile=gover.coverprofile -service=travis-ci'
+  - if [ -n "$(gofmt -l .)" ]; then echo "gofmt failed" ; exit 1 ; else echo "gofmt
+    succeeded" ; fi
+  - golint -set_exit_status
+  - go build ./...
+  - go test -v -race github.com/forstmeier/watchmyrepo/helpers -coverprofile=helpers.coverprofile
+  - go test -v -race github.com/forstmeier/watchmyrepo/database -coverprofile=database.coverprofile
+  - go test -v -race github.com/forstmeier/watchmyrepo/handlers -coverprofile=handlers.coverprofile
+  - go test -v -race github.com/forstmeier/watchmyrepo -coverprofile=watchmyrepo.coverprofile
+  - gover
+  - "$GOPATH/bin/goveralls -coverprofile=gover.coverprofile -service=travis-ci"
+deploy:
+  provider: gae
+  keyfile: client-secret.json
+  project: watchmyrepo-248001
 notifications:
   email: false
