@@ -8,6 +8,8 @@ import (
 	"net/url"
 	"strings"
 
+	"google.golang.org/appengine"
+
 	"github.com/forstmeier/watchmyrepo/database"
 )
 
@@ -30,7 +32,8 @@ type errorMsg struct {
 // Display renders the application landing page
 func Display(path string, database database.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		repos, err := database.LoadRepos()
+		ctx := appengine.NewContext(r)
+		repos, err := database.LoadRepos(ctx)
 		if err != nil {
 			tmpl := template.Must(template.ParseFiles(path + "error.html"))
 			e := errorMsg{
@@ -73,6 +76,7 @@ func validateURL(r *http.Request) (string, error) {
 // Submit processes new repo submissions to watch
 func Submit(path string, database database.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := appengine.NewContext(r)
 		repo, err := validateURL(r)
 		if err != nil {
 			tmpl := template.Must(template.ParseFiles(path + "error.html"))
@@ -84,7 +88,7 @@ func Submit(path string, database database.DB) http.HandlerFunc {
 			return
 		}
 
-		if err := database.SaveRepo(repo); err != nil {
+		if err := database.SaveRepo(ctx, repo); err != nil {
 			tmpl := template.Must(template.ParseFiles(path + "error.html"))
 			e := errorMsg{
 				Error:  err.Error(),
@@ -94,7 +98,7 @@ func Submit(path string, database database.DB) http.HandlerFunc {
 			return
 		}
 
-		repos, err := database.LoadRepos()
+		repos, err := database.LoadRepos(ctx)
 		if err != nil {
 			tmpl := template.Must(template.ParseFiles(path + "error.html"))
 			e := errorMsg{
@@ -117,10 +121,19 @@ func Submit(path string, database database.DB) http.HandlerFunc {
 	}
 }
 
+// FAQ renders the application landing page
+func FAQ(path string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		tmpl := template.Must(template.ParseFiles(path + "faq.html"))
+		tmpl.Execute(w, nil)
+	}
+}
+
 // Data handles requests for watched repo stats
 func Data(database database.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		stats, err := database.LoadStats()
+		ctx := appengine.NewContext(r)
+		stats, err := database.LoadStats(ctx)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

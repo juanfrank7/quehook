@@ -1,23 +1,14 @@
 package database
 
 import (
-	"log"
-	"os"
 	"testing"
 
-	"github.com/boltdb/bolt"
-
 	"github.com/forstmeier/watchmyrepo/helpers"
+	"google.golang.org/appengine/aetest"
 )
 
 func TestNewDB(t *testing.T) {
-	boltDB, err := bolt.Open("test_newdb.db", 0600, nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer boltDB.Close()
-
-	db, err := New(boltDB)
+	db, err := New()
 	if err != nil {
 		t.Errorf("description: error creating database, received: %s", err.Error())
 	}
@@ -25,29 +16,23 @@ func TestNewDB(t *testing.T) {
 	if db == nil {
 		t.Errorf("description: database created incorrectly, received: %+v", db)
 	}
-
-	if err := os.Remove("test_newdb.db"); err != nil {
-		log.Fatal(err)
-	}
 }
 
 func Test_repos(t *testing.T) {
-	db, err := bolt.Open("test_repos.db", 0600, nil)
+	ctx, done, err := aetest.NewContext()
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
-	defer db.Close()
+	defer done()
 
-	r := repoStatsDB{
-		db: db,
-	}
+	d := db{}
 
 	repoName := "test-repo"
-	if err := r.SaveRepo(repoName); err != nil {
+	if err := d.SaveRepo(ctx, repoName); err != nil {
 		t.Errorf("description: error saving repo data, error: %v", err)
 	}
 
-	repos, err := r.LoadRepos()
+	repos, err := d.LoadRepos(ctx)
 	if err != nil {
 		t.Errorf("description: error loading repo data, error: %v", err)
 	}
@@ -55,34 +40,27 @@ func Test_repos(t *testing.T) {
 	if len(repos) != 1 {
 		t.Errorf("description: incorrect repo count returned, received: %v, expected: %v", repos, []string{repoName})
 	}
-
-	if err := os.Remove("test_repos.db"); err != nil {
-		log.Fatal(err)
-	}
 }
 
 func Test_stats(t *testing.T) {
-	db, err := bolt.Open("test_stats.db", 0600, nil)
+	ctx, done, err := aetest.NewContext()
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
-	defer db.Close()
+	defer done()
 
-	s := repoStatsDB{
-		db: db,
-	}
-
+	d := db{}
 	statsList := []helpers.Stat{
 		{
 			Name: "test-stat",
 		},
 	}
 
-	if err := s.SaveStats(statsList); err != nil {
+	if err := d.SaveStats(ctx, statsList); err != nil {
 		t.Errorf("description: error saving stat data, error: %v", err)
 	}
 
-	stats, err := s.LoadStats()
+	stats, err := d.LoadStats(ctx)
 	if err != nil {
 		t.Errorf("description: error loading stat data, error: %v", err)
 	}
@@ -90,8 +68,27 @@ func Test_stats(t *testing.T) {
 	if len(stats) != 1 {
 		t.Errorf("description: incorrect stat count returned, received: %+v, expected: %v", stats, statsList)
 	}
+}
 
-	if err := os.Remove("test_stats.db"); err != nil {
-		log.Fatal(err)
+func Test_watchers(t *testing.T) {
+	ctx, done, err := aetest.NewContext()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer done()
+
+	d := db{}
+	id := "test-id"
+	if err := d.SaveWatcher(ctx, id); err != nil {
+		t.Errorf("description: error saving watcher data, error: %v", err)
+	}
+
+	watchers, err := d.LoadWatchers(ctx)
+	if err != nil {
+		t.Errorf("description: error loading stat data, error: %v", err)
+	}
+
+	if len(watchers) != 1 {
+		t.Errorf("description: incorrect stat count returned, received: %+v, expected: %v", id, watchers)
 	}
 }

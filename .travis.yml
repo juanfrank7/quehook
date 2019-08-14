@@ -1,6 +1,4 @@
 sudo: required
-services:
-  - docker
 language: go
 go:
   - 1.x
@@ -18,14 +16,18 @@ script:
   - golint -set_exit_status
   - go build ./...
   - go test -v -race github.com/forstmeier/watchmyrepo/helpers -coverprofile=helpers.coverprofile
-  - go test -v -race github.com/forstmeier/watchmyrepo/database -coverprofile=database.coverprofile
+  # - go test -v -race github.com/forstmeier/watchmyrepo/database -coverprofile=database.coverprofile
   - go test -v -race github.com/forstmeier/watchmyrepo/handlers -coverprofile=handlers.coverprofile
   - go test -v -race github.com/forstmeier/watchmyrepo -coverprofile=watchmyrepo.coverprofile
   - gover
-  - "$GOPATH/bin/goveralls -coverprofile=gover.coverprofile -service=travis-ci"
+  # - "$GOPATH/bin/goveralls -coverprofile=gover.coverprofile -service=travis-ci"
+  - rm *.coverprofile
 deploy:
   provider: gae
   keyfile: client-secret.json
   project: watchmyrepo-248001
+  skip_cleanup: true
+  on:
+    all_branches: true
 notifications:
   email: false

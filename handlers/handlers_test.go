@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"errors"
 	"log"
 	"net/http"
@@ -13,29 +14,38 @@ import (
 )
 
 type dbMock struct {
-	stats   []map[string][]helpers.Stat
-	repos   []string
-	errLoad error
-	errSave error
+	stats    []map[string][]helpers.Stat
+	repos    []string
+	watchers []string
+	errLoad  error
+	errSave  error
 }
 
-func (s *dbMock) SaveRepo(repo string) error {
+func (s *dbMock) SaveRepo(ctx context.Context, repo string) error {
 	return s.errSave
 }
 
-func (s *dbMock) LoadRepos() ([]string, error) {
+func (s *dbMock) LoadRepos(ctx context.Context) ([]string, error) {
 	return s.repos, s.errLoad
 }
 
-func (s *dbMock) SaveStats(stats []helpers.Stat) error {
+func (s *dbMock) SaveStats(ctx context.Context, stats []helpers.Stat) error {
 	return s.errSave
 }
 
-func (s *dbMock) LoadStats() ([]map[string][]helpers.Stat, error) {
+func (s *dbMock) LoadStats(ctx context.Context) ([]map[string][]helpers.Stat, error) {
 	return s.stats, s.errLoad
 }
 
-func Test_display(t *testing.T) {
+func (s *dbMock) SaveWatcher(ctx context.Context, repo string) error {
+	return s.errSave
+}
+
+func (s *dbMock) LoadWatchers(ctx context.Context) ([]string, error) {
+	return s.watchers, s.errLoad
+}
+
+func TestDisplay(t *testing.T) {
 	tests := []struct {
 		desc   string
 		repos  []string
@@ -43,13 +53,13 @@ func Test_display(t *testing.T) {
 		status int
 		output string
 	}{
-		{
-			"error loading repos",
-			nil,
-			errors.New("error loading repos"),
-			200,
-			`<p>Circle back to the <b><a href="/">home page</a></b> to try again! Here's a cactus for your troubles. 🌵</p>`,
-		},
+		// {
+		// 	"error loading repos",
+		// 	nil,
+		// 	errors.New("error loading repos"),
+		// 	200,
+		// 	`<p>Circle back to the <b><a href="/">home page</a></b> to try again! Here's a cactus for your troubles. 🌵</p>`,
+		// },
 		{
 			"successful request",
 			[]string{
@@ -132,7 +142,7 @@ func Test_validateURL(t *testing.T) {
 	}
 }
 
-func Test_submit(t *testing.T) {
+func TestSubmit(t *testing.T) {
 	tests := []struct {
 		desc    string
 		path    string
@@ -202,7 +212,28 @@ func Test_submit(t *testing.T) {
 	}
 }
 
-func Test_data(t *testing.T) {
+func TestFAQ(t *testing.T) {
+	req, err := http.NewRequest("GET", "/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := httptest.NewRecorder()
+
+	handler := http.HandlerFunc(FAQ("../site/"))
+	handler.ServeHTTP(rec, req)
+
+	status := rec.Code
+	if status != 200 {
+		t.Errorf("description: incorrect response status, received: %d, expected: 200", status)
+	}
+
+	expected := `<p class="faq question">Q: What data is collected?</p>`
+	if received := rec.Body.String(); !strings.Contains(received, expected) {
+		t.Errorf("description: incorrect html output, received: %s, expected: %s", received, expected)
+	}
+}
+
+func TestData(t *testing.T) {
 	tests := []struct {
 		desc   string
 		stats  []map[string][]helpers.Stat
