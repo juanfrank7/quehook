@@ -1,31 +1,26 @@
 package main
 
 import (
-	"log"
-	"net/http"
+	"github.com/aws/aws-lambda-go/events"
+	"github.com/aws/aws-lambda-go/lambda"
 
-	"google.golang.org/appengine"
-
-	"github.com/forstmeier/watchmyrepo/database"
-	"github.com/forstmeier/watchmyrepo/handlers"
+	"github.com/forstmeier/comana/handlers"
+	"github.com/forstmeier/comana/storage"
 )
 
-func main() {
-	db, err := database.New()
-	if err != nil {
-		log.Fatal(err)
+func router(req handlers.Request) (events.APIGatewayProxyResponse, error) {
+	s := storage.New()
+
+	switch req.HTTPMethod {
+	case "GET":
+		return handlers.LoadData(s)
+	case "PUT":
+		return handlers.BackfillData(req, s)
+	default:
+		return handlers.SaveData(req, s)
 	}
+}
 
-	http.HandleFunc("/", handlers.Display("site/", db))
-	http.HandleFunc("/submit", handlers.Submit("site/", db))
-	http.HandleFunc("/data", handlers.Data(db))
-	http.HandleFunc("/faq", handlers.FAQ("site/"))
-	http.HandleFunc("/main.css", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "site/main.css")
-	})
-	http.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "site/favicon.ico")
-	})
-
-	appengine.Main()
+func main() {
+	lambda.Start(router)
 }

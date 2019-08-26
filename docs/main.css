@@ -1,0 +1,105 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+a,
+a:hover,
+a:visited,
+a:link {
+  color: #27798C;
+  font-weight: 700;
+}
+
+body,
+html {
+  color: #27798C;
+  font-family: 'Palanquin Dark', sans-serif;
+  height: 100%;
+  width: 100%;
+}
+
+h2,
+h3,
+.links {
+  padding-top: 1rem;
+}
+
+p {
+  padding-top: 0.5rem;
+}
+
+.background{
+  font-size: 0;
+  height: 100%;
+  left: 0px;
+  padding-top: 4rem;
+  position: absolute;
+  top: 0px;
+  width: 100%;
+}
+
+.container-lg {
+  height: 100%;
+  left: 0px;
+  margin: auto;
+  padding: 1rem;
+  position: relative;
+  top: 0px;
+  width: 34rem;
+  z-index: 100;
+}
+
+.container-sm {
+  background-color: rgba(255, 255, 255, 0.8);
+  border: 1px solid #27798C;
+  border-radius: 15px;
+  margin-top: 8rem;
+  padding: 2rem;
+}
+
+.faq {
+  padding-top: 1rem;
+}
+
+.links {
+  padding-top: 2rem;
+}
+
+.links > span {
+  margin-right: 1rem;
+}
+
+.snippet {
+  font-family: 'Source Code Pro', monospace;
+}
+
+@media only screen and (max-width: 767px) {
+  .container-lg {
+    width: 86%;
+  }
+
+  .container-sm {
+    margin-top: 4rem;
+  }
+}
+
+@media only screen and (max-width: 480px) {
+  h1 {
+    font-size: 1.5rem;
+  }
+
+  h2,
+  h3 {
+    font-size: 1rem;
+  }
+
+  .container-lg {
+    width: 96%;
+  }
+
+  .container-sm {
+    margin-top: 2rem;
+  }
+}

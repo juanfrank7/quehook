@@ -1,151 +1,238 @@
 package handlers
 
 import (
+	"bufio"
+	"compress/gzip"
 	"encoding/json"
 	"errors"
-	"html/template"
+	"fmt"
+	"io"
+	"io/ioutil"
 	"net/http"
-	"net/url"
+	"os"
+	"strconv"
 	"strings"
+	"time"
 
-	"google.golang.org/appengine"
+	"github.com/aws/aws-lambda-go/events"
+	"github.com/tidwall/gjson"
 
-	"github.com/forstmeier/watchmyrepo/database"
+	"github.com/forstmeier/comana/storage"
 )
 
-type stats struct {
-	Repos      int
-	Datapoints int
-	Watchers   int
+// Request provides a generalization of CloudWatch and API Gateway events
+type Request struct {
+	Body       string            `json:"body"`
+	HTTPMethod string            `json:"httpMethod"`
+	Headers    map[string]string `json:"headers"`
+	Source     string            `json:"source"`
 }
 
-type info struct {
-	Stats stats
-	Name  string
-}
-
-type errorMsg struct {
-	Status int
-	Error  string
-}
-
-// Display renders the application landing page
-func Display(path string, database database.DB) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := appengine.NewContext(r)
-		repos, err := database.LoadRepos(ctx)
-		if err != nil {
-			tmpl := template.Must(template.ParseFiles(path + "error.html"))
-			e := errorMsg{
-				Error:  err.Error(),
-				Status: http.StatusInternalServerError,
-			}
-			tmpl.Execute(w, e)
-			return
-		}
-
-		s := info{
-			Stats: stats{
-				Repos: len(repos),
-			},
-		}
-
-		tmpl := template.Must(template.ParseFiles(path + "index.html"))
-		tmpl.Execute(w, s)
-	}
-}
-
-func validateURL(r *http.Request) (string, error) {
-	r.ParseForm()
-
-	repo := r.Form["repo"][0]
-
-	_, err := url.ParseRequestURI(repo)
+var download = func(url string) ([]byte, error) {
+	resp, err := http.Get(url)
 	if err != nil {
-		return "", err
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	respData, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
 	}
 
-	if !strings.Contains(repo, "github.com") {
-		return "", errors.New("'github.com' not found in url")
-	}
-	repoSplit := strings.Split(repo, "/")
-
-	return repoSplit[3] + "/" + repoSplit[4], nil
+	return respData, nil
 }
 
-// Submit processes new repo submissions to watch
-func Submit(path string, database database.DB) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := appengine.NewContext(r)
-		repo, err := validateURL(r)
-		if err != nil {
-			tmpl := template.Must(template.ParseFiles(path + "error.html"))
-			e := errorMsg{
-				Error:  err.Error(),
-				Status: http.StatusBadRequest,
-			}
-			tmpl.Execute(w, e)
-			return
-		}
+var unzip = func(input []byte) (*bufio.Scanner, error) {
+	r := strings.NewReader(string(input))
 
-		if err := database.SaveRepo(ctx, repo); err != nil {
-			tmpl := template.Must(template.ParseFiles(path + "error.html"))
-			e := errorMsg{
-				Error:  err.Error(),
-				Status: http.StatusInternalServerError,
-			}
-			tmpl.Execute(w, e)
-			return
-		}
-
-		repos, err := database.LoadRepos(ctx)
-		if err != nil {
-			tmpl := template.Must(template.ParseFiles(path + "error.html"))
-			e := errorMsg{
-				Error:  err.Error(),
-				Status: http.StatusInternalServerError,
-			}
-			tmpl.Execute(w, e)
-			return
-		}
-
-		resp := info{
-			Name: repo,
-			Stats: stats{
-				Repos: len(repos),
-			},
-		}
-
-		tmpl := template.Must(template.ParseFiles(path + "index.html"))
-		tmpl.Execute(w, resp)
+	gz, err := gzip.NewReader(r)
+	if err != nil {
+		return nil, err
 	}
+
+	return bufio.NewScanner(gz), nil
 }
 
-// FAQ renders the application landing page
-func FAQ(path string) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		tmpl := template.Must(template.ParseFiles(path + "faq.html"))
-		tmpl.Execute(w, nil)
+var parse = func(s *bufio.Scanner) (io.Reader, error) {
+	data := make(map[string]map[string]int)
+	for s.Scan() {
+		line := s.Text()
+
+		event := gjson.Get(line, "type").String()
+		repo := gjson.Get(line, "repo.name").String()
+
+		if _, repoExists := data[repo]; repoExists {
+			if _, eventExists := data[repo][event]; eventExists {
+				data[repo][event]++
+			} else {
+				data[repo][event] = 1
+			}
+		} else {
+			data[repo] = map[string]int{
+				event: 1,
+			}
+		}
 	}
+
+	b, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
+
+	return strings.NewReader(string(b)), nil
 }
 
-// Data handles requests for watched repo stats
-func Data(database database.DB) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := appengine.NewContext(r)
-		stats, err := database.LoadStats(ctx)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		output, err := json.Marshal(stats)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		w.Write(output)
+// SaveData pulls in and parses GitHub Archive data
+func SaveData(req Request, s storage.Storage) (events.APIGatewayProxyResponse, error) {
+	if req.Source == "" || req.Source != "aws.events" {
+		return events.APIGatewayProxyResponse{
+			StatusCode:      500,
+			Body:            "request source must be cloudwatch event",
+			IsBase64Encoded: false,
+		}, errors.New("request source must be cloudwatch event")
 	}
+
+	current := time.Now().Add(time.Hour * -5) // 1 hour prior + 4 hour UTC-EST difference
+	year, m, day := current.Date()
+	month := int(m)
+	hour := current.Hour()
+
+	url := fmt.Sprintf("%s/%d-%02d-%02d-%d.json.gz", "https://data.gharchive.org", year, month, day, hour)
+	file, err := download(url)
+	if err != nil {
+		return events.APIGatewayProxyResponse{
+			StatusCode:      500,
+			Body:            "error retrieving archieve file: " + err.Error(),
+			IsBase64Encoded: false,
+		}, err
+	}
+
+	scanner, err := unzip(file)
+	if err != nil {
+		return events.APIGatewayProxyResponse{
+			StatusCode:      500,
+			Body:            "error unzipping archieve file: " + err.Error(),
+			IsBase64Encoded: false,
+		}, err
+	}
+
+	reader, err := parse(scanner)
+	if err != nil {
+		return events.APIGatewayProxyResponse{
+			StatusCode:      500,
+			Body:            "error parsing archieve file: " + err.Error(),
+			IsBase64Encoded: false,
+		}, err
+	}
+
+	if err := s.PutFile(reader); err != nil {
+		return events.APIGatewayProxyResponse{
+			StatusCode:      500,
+			Body:            "error saving report file: " + err.Error(),
+			IsBase64Encoded: false,
+		}, err
+	}
+
+	return events.APIGatewayProxyResponse{
+		StatusCode:      200,
+		Body:            "success",
+		IsBase64Encoded: false,
+	}, nil
+}
+
+// LoadData retrieves and returns GitHub Archive reports
+func LoadData(s storage.Storage) (events.APIGatewayProxyResponse, error) {
+	paths, err := s.GetPaths()
+	if err != nil {
+		return events.APIGatewayProxyResponse{
+			StatusCode:      500,
+			Body:            "error loading report filepaths: " + err.Error(),
+			IsBase64Encoded: false,
+		}, err
+	}
+
+	pathsObject := map[string][]string{
+		"paths": paths,
+	}
+
+	output, err := json.Marshal(pathsObject)
+	if err != nil {
+		return events.APIGatewayProxyResponse{
+			StatusCode:      500,
+			Body:            "error marshalling output: " + err.Error(),
+			IsBase64Encoded: false,
+		}, err
+	}
+
+	return events.APIGatewayProxyResponse{
+		StatusCode: 200,
+		Headers: map[string]string{
+			"result_count": strconv.Itoa(len(paths)),
+		},
+		Body:            string(output),
+		IsBase64Encoded: false,
+	}, err
+}
+
+// BackfillData pulls in historic data for stat updates
+func BackfillData(req Request, s storage.Storage) (events.APIGatewayProxyResponse, error) {
+	if req.Headers["COMANA_SECRET"] != os.Getenv("COMANA_SECRET") {
+		return events.APIGatewayProxyResponse{
+			StatusCode:      500,
+			Body:            "incorrect secret received: " + req.Headers["COMANA_SECRET"],
+			IsBase64Encoded: false,
+		}, errors.New("incorrect secret received: " + req.Headers["COMANA_SECRET"])
+	}
+
+	year := gjson.Get(req.Body, "year").Int()
+	month := gjson.Get(req.Body, "month").Int()
+	startDay := gjson.Get(req.Body, "start_day").Int()
+	endDay := gjson.Get(req.Body, "end_day").Int()
+
+	for i := startDay; i <= endDay; i++ {
+		for j := 0; j < 24; j++ {
+			url := fmt.Sprintf("%s/%d-%02d-%02d-%d.json.gz", "https://data.gharchive.org", year, month, i, j)
+			file, err := download(url)
+			if err != nil {
+				return events.APIGatewayProxyResponse{
+					StatusCode:      500,
+					Body:            "error retrieving backfill archieve file: " + err.Error(),
+					IsBase64Encoded: false,
+				}, err
+			}
+
+			scanner, err := unzip(file)
+			if err != nil {
+				return events.APIGatewayProxyResponse{
+					StatusCode:      500,
+					Body:            "error unzipping backfill archieve file: " + err.Error(),
+					IsBase64Encoded: false,
+				}, err
+			}
+
+			reader, err := parse(scanner)
+			if err != nil {
+				return events.APIGatewayProxyResponse{
+					StatusCode:      500,
+					Body:            "error parsing backfill archieve file: " + err.Error(),
+					IsBase64Encoded: false,
+				}, err
+			}
+
+			if err := s.PutFile(reader); err != nil {
+				return events.APIGatewayProxyResponse{
+					StatusCode:      500,
+					Body:            "error saving backfill report file: " + err.Error(),
+					IsBase64Encoded: false,
+				}, err
+			}
+		}
+	}
+
+	return events.APIGatewayProxyResponse{
+		StatusCode:      200,
+		Body:            "success",
+		IsBase64Encoded: false,
+	}, nil
 }

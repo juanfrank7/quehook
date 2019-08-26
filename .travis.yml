@@ -3,8 +3,6 @@ language: go
 go:
   - 1.x
 before_install:
-  - openssl aes-256-cbc -K $encrypted_83707b6e0d98_key -iv $encrypted_83707b6e0d98_iv
-    -in client-secret.json.enc -out client-secret.json -d
   - go get github.com/mattn/goveralls
   - go get github.com/modocache/gover
   - go get -u golang.org/x/lint/golint
@@ -15,19 +13,19 @@ script:
     succeeded" ; fi
   - golint -set_exit_status
   - go build ./...
-  - go test -v -race github.com/forstmeier/watchmyrepo/helpers -coverprofile=helpers.coverprofile
-  # - go test -v -race github.com/forstmeier/watchmyrepo/database -coverprofile=database.coverprofile
-  - go test -v -race github.com/forstmeier/watchmyrepo/handlers -coverprofile=handlers.coverprofile
-  - go test -v -race github.com/forstmeier/watchmyrepo -coverprofile=watchmyrepo.coverprofile
+  - go test -v -race github.com/forstmeier/comana/handlers -coverprofile=handlers.coverprofile
+  - go test -v -race github.com/forstmeier/comana/storage -coverprofile=storage.coverprofile
+  # - go test -v -race github.com/forstmeier/comana -coverprofile=comana.coverprofile
   - gover
-  # - "$GOPATH/bin/goveralls -coverprofile=gover.coverprofile -service=travis-ci"
+  - "$GOPATH/bin/goveralls -coverprofile=gover.coverprofile -service=travis-ci"
   - rm *.coverprofile
+after_success:
+  - pip install --user awscli
+  - export PATH=$PATH:$HOME/.local/bin
 deploy:
-  provider: gae
-  keyfile: client-secret.json
-  project: watchmyrepo-248001
-  skip_cleanup: true
-  on:
-    all_branches: true
+  - provider: script
+    script:
+      - go build && zip comana.zip comana && aws lambda update-function-code --function-name comana --zip-file fileb://comana.zip --region us-east-1
+    skip_cleanup: true
 notifications:
   email: false

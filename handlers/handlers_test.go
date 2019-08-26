@@ -1,292 +1,424 @@
 package handlers
 
 import (
-	"context"
+	"bufio"
+	"bytes"
+	"compress/gzip"
 	"errors"
+	"io"
 	"log"
-	"net/http"
-	"net/http/httptest"
-	"net/url"
+	"os"
 	"strings"
 	"testing"
-
-	"github.com/forstmeier/watchmyrepo/helpers"
+	"time"
 )
 
-type dbMock struct {
-	stats    []map[string][]helpers.Stat
-	repos    []string
-	watchers []string
-	errLoad  error
-	errSave  error
-}
-
-func (s *dbMock) SaveRepo(ctx context.Context, repo string) error {
-	return s.errSave
-}
-
-func (s *dbMock) LoadRepos(ctx context.Context) ([]string, error) {
-	return s.repos, s.errLoad
-}
-
-func (s *dbMock) SaveStats(ctx context.Context, stats []helpers.Stat) error {
-	return s.errSave
-}
-
-func (s *dbMock) LoadStats(ctx context.Context) ([]map[string][]helpers.Stat, error) {
-	return s.stats, s.errLoad
-}
-
-func (s *dbMock) SaveWatcher(ctx context.Context, repo string) error {
-	return s.errSave
-}
-
-func (s *dbMock) LoadWatchers(ctx context.Context) ([]string, error) {
-	return s.watchers, s.errLoad
-}
-
-func TestDisplay(t *testing.T) {
+func Test_download(t *testing.T) {
 	tests := []struct {
-		desc   string
-		repos  []string
-		err    error
-		status int
-		output string
-	}{
-		// {
-		// 	"error loading repos",
-		// 	nil,
-		// 	errors.New("error loading repos"),
-		// 	200,
-		// 	`<p>Circle back to the <b><a href="/">home page</a></b> to try again! Here's a cactus for your troubles. 🌵</p>`,
-		// },
-		{
-			"successful request",
-			[]string{
-				"nerf-herder/millenium-falcon",
-			},
-			nil,
-			200,
-			"<h1>Watch My Repo 🔭</h1>",
-		},
-	}
-
-	for _, test := range tests {
-		req, err := http.NewRequest("GET", "/", nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-		rec := httptest.NewRecorder()
-
-		db := &dbMock{
-			repos:   test.repos,
-			errLoad: test.err,
-		}
-
-		handler := http.HandlerFunc(Display("../site/", db))
-		handler.ServeHTTP(rec, req)
-
-		if status := rec.Code; status != test.status {
-			t.Errorf("description: %s, incorrect status code, received: %d, expected: %d", test.desc, status, test.status)
-		}
-
-		if received := rec.Body.String(); !strings.Contains(received, test.output) {
-			t.Errorf("description: %s, returned incorrect response, received: %v, expected: %v", test.desc, received, test.output)
-		}
-	}
-
-}
-
-func Test_validateURL(t *testing.T) {
-	tests := []struct {
+		desc string
 		url  string
-		repo string
-		err  error
+		err  string
 	}{
 		{
-			"test.com",
-			"",
-			errors.New("parse test.com: invalid URI for request"),
+			"bad url",
+			"https://temp.com",
+			"Get https://temp.com: dial tcp 23.23.86.44:443: connect: connection refused",
 		},
 		{
-			"https://test.com",
-			"",
-			errors.New("'github.com' not found in url"),
-		},
-		{
-			"https://github.com/test/test",
-			"test/test",
-			nil,
+			"good url",
+			"https://data.gharchive.org/2019-01-01-15.json.gz",
+			"asdfasdfas",
 		},
 	}
 
 	for _, test := range tests {
-
-		req, err := http.NewRequest("POST", "test-url", nil)
-		if err != nil {
-			log.Fatalf("error creating request: %s", err.Error())
-		}
-		form := url.Values{}
-		form.Add("repo", test.url)
-		req.PostForm = form
-
-		output, err := validateURL(req)
-
-		if output != test.repo {
-			t.Errorf("description: incorrect repo value, received: %s, expected: %s", output, test.repo)
+		file, err := download(test.url)
+		if err != nil && err.Error() != test.err {
+			t.Errorf("description: %s, received: %s, expected: %s", test.desc, err.Error(), test.err)
 		}
 
-		if err != nil && err.Error() != test.err.Error() {
-			t.Errorf("description: incorrect error value, received: %s, expected: %s", err.Error(), test.err.Error())
+		if err == nil && file == nil {
+			t.Errorf("description: %s, no output file found", test.desc)
 		}
 	}
 }
 
-func TestSubmit(t *testing.T) {
+func Test_unzip(t *testing.T) {
 	tests := []struct {
-		desc    string
-		path    string
-		repos   []string
-		errSave error
-		errLoad error
-		output  string
+		desc  string
+		input []byte
+		err   string
 	}{
 		{
-			"incorrect filepath",
-			"/incorrect/",
-			nil,
-			errors.New("incorrect filepath"),
-			nil,
-			"<p><b>Status</b>: 500 <b>Error</b>: incorrect filepath</p>",
-		},
-		{
-			"error saving repo",
-			"../site/",
-			nil,
-			errors.New("error saving repo"),
-			nil,
-			"<p><b>Status</b>: 500 <b>Error</b>: error saving repo</p>",
-		},
-		{
-			"error loading repo",
-			"../site/",
-			nil,
-			nil,
-			errors.New("error loading repo"),
-			"<p><b>Status</b>: 500 <b>Error</b>: error loading repo</p>",
-		},
-		{
-			"successful request",
-			"../site/",
-			[]string{
-				"test-owner/test-repo",
-			},
-			nil,
-			nil,
-			`<div class="dynamic response">test-owner/test-repo submitted successfully</div>`,
+			desc:  "successful invocation",
+			input: []byte(`{"test-key": "test-value"}`),
+			err:   "",
 		},
 	}
 
 	for _, test := range tests {
-		req, err := http.NewRequest("POST", "/", nil)
+		var buf bytes.Buffer
+
+		w := gzip.NewWriter(&buf)
+		w.Header = gzip.Header{
+			Name:    "test.json.gz",
+			Comment: "",
+			Extra:   []byte{},
+			ModTime: time.Now(),
+			OS:      byte(255),
+		}
+		_, err := w.Write(test.input)
 		if err != nil {
-			t.Fatal(err)
-		}
-		form := url.Values{}
-		form.Add("repo", "https://github.com/test-owner/test-repo")
-		req.PostForm = form
-		rec := httptest.NewRecorder()
-
-		db := &dbMock{
-			repos:   test.repos,
-			errSave: test.errSave,
-			errLoad: test.errLoad,
+			log.Fatalf("error creating test gzip resource %s", err.Error())
 		}
 
-		handler := http.HandlerFunc(Submit("../site/", db))
-		handler.ServeHTTP(rec, req)
+		_, err = unzip(buf.Bytes())
 
-		if received := rec.Body.String(); !strings.Contains(received, test.output) {
-			t.Errorf("description: %s, display handler returned incorrect response, received: %v, expected: %v", test.desc, received, test.output)
+		if err != nil && err.Error() != test.err {
+			t.Errorf("description: %s, received: %s, expected: %s", test.desc, err.Error(), test.err)
 		}
 	}
 }
 
-func TestFAQ(t *testing.T) {
-	req, err := http.NewRequest("GET", "/", nil)
-	if err != nil {
-		t.Fatal(err)
+func Test_parse(t *testing.T) {
+	tests := []struct {
+		desc string
+		scnr *bufio.Scanner
+		rdr  io.Reader
+		err  string
+	}{
+		{
+			desc: "successful invocation",
+			scnr: bufio.NewScanner(
+				strings.NewReader(`{"type": "test-event", "repo":{"name": "test-repo"}}`),
+			),
+			rdr: strings.NewReader("test-reader"),
+			err: "",
+		},
 	}
-	rec := httptest.NewRecorder()
 
-	handler := http.HandlerFunc(FAQ("../site/"))
-	handler.ServeHTTP(rec, req)
-
-	status := rec.Code
-	if status != 200 {
-		t.Errorf("description: incorrect response status, received: %d, expected: 200", status)
-	}
-
-	expected := `<p class="faq question">Q: What data is collected?</p>`
-	if received := rec.Body.String(); !strings.Contains(received, expected) {
-		t.Errorf("description: incorrect html output, received: %s, expected: %s", received, expected)
+	for _, test := range tests {
+		_, err := parse(test.scnr)
+		if err != nil && err.Error() != test.err {
+			t.Errorf("description: %s, received: %s, expected: %s", test.desc, err.Error(), test.err)
+		}
 	}
 }
 
-func TestData(t *testing.T) {
+type mockStorage struct {
+	putFileErr  error
+	getFilesOut map[string]io.Reader
+	getFilesErr error
+	getPathsOut []string
+	getPathsErr error
+}
+
+func (m *mockStorage) PutFile(io.Reader) error {
+	return m.putFileErr
+}
+
+func (m *mockStorage) GetFiles() (map[string]io.Reader, error) {
+	return m.getFilesOut, m.getFilesErr
+}
+
+func (m *mockStorage) GetPaths() ([]string, error) {
+	return m.getPathsOut, m.getPathsErr
+}
+
+func TestSaveData(t *testing.T) {
 	tests := []struct {
 		desc   string
-		stats  []map[string][]helpers.Stat
-		err    error
+		src    string
+		dwn    func(url string) ([]byte, error)
+		uzp    func([]byte) (*bufio.Scanner, error)
+		prs    func(s *bufio.Scanner) (io.Reader, error)
+		dbErr  error
 		status int
-		output string
+		err    string
 	}{
 		{
-			"error loading stats",
-			nil,
-			errors.New("error loading stats"),
-			500,
-			"error loading stats",
+			desc: "incorrect source",
+			src:  "not-source",
+			dwn: func(string) ([]byte, error) {
+				return nil, errors.New("download error")
+			},
+			uzp:    nil,
+			prs:    nil,
+			dbErr:  nil,
+			status: 500,
+			err:    "request source must be cloudwatch event",
 		},
 		{
-			"successful request",
-			[]map[string][]helpers.Stat{
-				map[string][]helpers.Stat{
-					"owner/repo": []helpers.Stat{
-						helpers.Stat{
-							Name: "owner/repo",
-						},
-					},
-				},
+			desc: "archive download error",
+			src:  "aws.events",
+			dwn: func(string) ([]byte, error) {
+				return nil, errors.New("download error")
 			},
-			nil,
-			200,
-			`[{"owner/repo":[{"Name":"owner/repo","Time":"0001-01-01T00:00:00Z","Stars":0,"Watchers":0,"Collaborators":0,"Downloads":0,"Health":0,"Forks":0,"Contributors":0}]}]`,
+			uzp:    nil,
+			prs:    nil,
+			dbErr:  nil,
+			status: 500,
+			err:    "download error",
+		},
+		{
+			desc: "archive unzip error",
+			src:  "aws.events",
+			dwn: func(string) ([]byte, error) {
+				return nil, nil
+			},
+			uzp: func([]byte) (*bufio.Scanner, error) {
+				return nil, errors.New("unzip error")
+			},
+			prs:    nil,
+			dbErr:  nil,
+			status: 500,
+			err:    "unzip error",
+		},
+		{
+			desc: "archive parse error",
+			src:  "aws.events",
+			dwn: func(string) ([]byte, error) {
+				return nil, nil
+			},
+			uzp: func([]byte) (*bufio.Scanner, error) {
+				return nil, nil
+			},
+			prs: func(s *bufio.Scanner) (io.Reader, error) {
+				return nil, errors.New("parse error")
+			},
+			dbErr:  nil,
+			status: 500,
+			err:    "parse error",
+		},
+		{
+			desc: "put file error",
+			src:  "aws.events",
+			dwn: func(string) ([]byte, error) {
+				return nil, nil
+			},
+			uzp: func([]byte) (*bufio.Scanner, error) {
+				return nil, nil
+			},
+			prs: func(s *bufio.Scanner) (io.Reader, error) {
+				return strings.NewReader("test"), nil
+			},
+			dbErr:  errors.New("put file error"),
+			status: 500,
+			err:    "put file error",
+		},
+		{
+			desc: "successful invocation",
+			src:  "aws.events",
+			dwn: func(string) ([]byte, error) {
+				return nil, nil
+			},
+			uzp: func([]byte) (*bufio.Scanner, error) {
+				return nil, nil
+			},
+			prs: func(s *bufio.Scanner) (io.Reader, error) {
+				return strings.NewReader("test"), nil
+			},
+			dbErr:  nil,
+			status: 200,
+			err:    "",
 		},
 	}
 
 	for _, test := range tests {
-		req, err := http.NewRequest("GET", "/", nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-		rec := httptest.NewRecorder()
-
-		db := &dbMock{
-			stats:   test.stats,
-			errLoad: test.err,
+		s := &mockStorage{
+			putFileErr: test.dbErr,
 		}
 
-		handler := http.HandlerFunc(Data(db))
-		handler.ServeHTTP(rec, req)
+		download = test.dwn
+		unzip = test.uzp
+		parse = test.prs
 
-		status := rec.Code
-		if status != test.status {
-			t.Errorf("description: %s, incorrect status returned, received: %d, expected: %d", test.desc, status, test.status)
+		req := Request{
+			Source: test.src,
 		}
 
-		if received := rec.Body.String(); !strings.Contains(received, test.output) {
-			t.Errorf("description: %s, incorrect json output, received: %v, expected: %v", test.desc, received, test.output)
+		resp, err := SaveData(req, s)
+
+		if err != nil && err.Error() != test.err {
+			t.Errorf("description: %s, error received: %s, expected: %s", test.desc, err.Error(), test.err)
+		}
+
+		if resp.StatusCode != test.status {
+			t.Errorf("description: %s, status received: %d, expected: %d", test.desc, resp.StatusCode, test.status)
+		}
+	}
+}
+
+func TestLoadData(t *testing.T) {
+	tests := []struct {
+		desc        string
+		getPathsOut []string
+		getPathsErr error
+		status      int
+		err         string
+	}{
+		{
+			desc:        "get paths error",
+			getPathsOut: nil,
+			getPathsErr: errors.New("get paths error"),
+			status:      500,
+			err:         "get paths error",
+		},
+		{
+			desc:        "successful invocation",
+			getPathsOut: []string{},
+			getPathsErr: nil,
+			status:      200,
+			err:         "",
+		},
+	}
+
+	for _, test := range tests {
+		s := &mockStorage{
+			getPathsOut: test.getPathsOut,
+			getPathsErr: test.getPathsErr,
+		}
+
+		resp, err := LoadData(s)
+
+		if err != nil && err.Error() != test.err {
+			t.Errorf("description: %s, error received: %s, expected: %s", test.desc, err.Error(), test.err)
+		}
+
+		if resp.StatusCode != test.status {
+			t.Errorf("description: %s, status received: %d, expected: %d", test.desc, resp.StatusCode, test.status)
+		}
+	}
+}
+
+func TestBackfillData(t *testing.T) {
+	tests := []struct {
+		desc        string
+		secret      string
+		body        string
+		downloadErr error
+		unzipOutput *bufio.Scanner
+		unzipErr    error
+		parseOutput io.Reader
+		parseErr    error
+		putFileErr  error
+		status      int
+		err         string
+	}{
+		{
+			desc:        "incorrect request secret",
+			secret:      "test-secret-failure",
+			body:        "",
+			downloadErr: nil,
+			unzipOutput: nil,
+			unzipErr:    nil,
+			parseOutput: strings.NewReader("test"),
+			parseErr:    nil,
+			putFileErr:  nil,
+			status:      500,
+			err:         "incorrect secret received: test-secret-failure",
+		},
+		{
+			desc:        "download function error",
+			secret:      "test-secret",
+			body:        `{"year": 1977, "month": 5, "startDay": 25, "endDay": 25}`,
+			downloadErr: errors.New("download error"),
+			unzipOutput: nil,
+			unzipErr:    nil,
+			parseOutput: strings.NewReader("test"),
+			parseErr:    nil,
+			putFileErr:  nil,
+			status:      500,
+			err:         "download error",
+		},
+		{
+			desc:        "unzip function error",
+			secret:      "test-secret",
+			body:        `{"year": 1977, "month": 5, "startDay": 25, "endDay": 25}`,
+			downloadErr: nil,
+			unzipOutput: nil,
+			unzipErr:    errors.New("unzip error"),
+			parseOutput: strings.NewReader("test"),
+			parseErr:    nil,
+			putFileErr:  nil,
+			status:      500,
+			err:         "unzip error",
+		},
+		{
+			desc:        "parse function error",
+			secret:      "test-secret",
+			body:        `{"year": 1977, "month": 5, "startDay": 25, "endDay": 25}`,
+			downloadErr: nil,
+			unzipOutput: nil,
+			unzipErr:    nil,
+			parseOutput: strings.NewReader("test"),
+			parseErr:    errors.New("parse error"),
+			putFileErr:  nil,
+			status:      500,
+			err:         "parse error",
+		},
+		{
+			desc:        "parse function error",
+			secret:      "test-secret",
+			body:        `{"year": 1977, "month": 5, "startDay": 25, "endDay": 25}`,
+			downloadErr: nil,
+			unzipOutput: nil,
+			unzipErr:    nil,
+			parseOutput: strings.NewReader("test"),
+			parseErr:    nil,
+			putFileErr:  errors.New("put file error"),
+			status:      500,
+			err:         "put file error",
+		},
+		{
+			desc:        "parse function error",
+			secret:      "test-secret",
+			body:        `{"year": 1977, "month": 5, "startDay": 25, "endDay": 25}`,
+			downloadErr: nil,
+			unzipOutput: nil,
+			unzipErr:    nil,
+			parseOutput: strings.NewReader("test"),
+			parseErr:    nil,
+			putFileErr:  nil,
+			status:      200,
+			err:         "",
+		},
+	}
+
+	for _, test := range tests {
+		os.Setenv("COMANA_SECRET", "test-secret")
+
+		s := &mockStorage{
+			putFileErr: test.putFileErr,
+		}
+
+		download = func(url string) ([]byte, error) {
+			return nil, test.downloadErr
+		}
+
+		unzip = func([]byte) (*bufio.Scanner, error) {
+			return test.unzipOutput, test.unzipErr
+		}
+
+		parse = func(s *bufio.Scanner) (io.Reader, error) {
+			return test.parseOutput, test.parseErr
+		}
+
+		r := Request{
+			Headers: map[string]string{
+				"COMANA_SECRET": test.secret,
+			},
+			Body: test.body,
+		}
+
+		resp, err := BackfillData(r, s)
+
+		if err != nil && err.Error() != test.err {
+			t.Errorf("description: %s, error received: %s, expected: %s", test.desc, err.Error(), test.err)
+		}
+
+		if resp.StatusCode != test.status {
+			t.Errorf("description: %s, status received: %d, expected: %d", test.desc, resp.StatusCode, test.status)
 		}
 	}
 }
