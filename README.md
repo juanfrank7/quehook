@@ -2,7 +2,7 @@
 
 > Monitor open source repository community activity :telescope:
 
-[![Build Status](https://travis-ci.org/forstmeier/comana.svg?branch=master)](https://travis-ci.org/forstmeier/comana) [![Coverage Status](https://coveralls.io/repos/github/forstmeier/comana/badge.svg?branch=master)](https://coveralls.io/github/forstmeier/comana?branch=master) 
+[![Build Status](https://travis-ci.org/forstmeier/comana.svg?branch=master)](https://travis-ci.org/forstmeier/comana) [![Coverage Status](https://coveralls.io/repos/github/forstmeier/comana/badge.svg?branch=master)](https://coveralls.io/github/forstmeier/comana?branch=master) [![Go Report Card](https://goreportcard.com/badge/github.com/forstmeier/comana)](https://goreportcard.com/report/github.com/forstmeier/comana)
 
 ## Introduction :beers:
 
