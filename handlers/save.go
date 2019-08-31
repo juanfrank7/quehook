@@ -137,7 +137,7 @@ func SaveData(req Request, s storage.Storage) (events.APIGatewayProxyResponse, e
 		}, err
 	}
 
-	log.Pringln("successful save")
+	log.Println("successful save")
 	return events.APIGatewayProxyResponse{
 		StatusCode:      200,
 		Body:            "success",
