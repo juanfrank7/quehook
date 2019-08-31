@@ -17,14 +17,13 @@ import (
 type s3Client interface {
 	GetObject(input *s3.GetObjectInput) (*s3.GetObjectOutput, error)
 	GetObjectRequest(input *s3.GetObjectInput) (req *request.Request, output *s3.GetObjectOutput)
-	ListObjects(input *s3.ListObjectsInput) (*s3.ListObjectsOutput, error)
+	ListObjectsV2(input *s3.ListObjectsV2Input) (*s3.ListObjectsV2Output, error)
 	PutObject(input *s3.PutObjectInput) (*s3.PutObjectOutput, error)
 }
 
 // Storage provides helper methods for persisting/retrieving files
 type Storage interface {
-	PutFile(io.Reader) error
-	GetFiles() (map[string]io.Reader, error)
+	PutFile(int, int, int, int, io.Reader) error
 	GetPaths() ([]string, error)
 }
 
@@ -41,14 +40,8 @@ func New() Storage {
 }
 
 // PutFile persists a JSON file in S3
-func (c *Client) PutFile(file io.Reader) error {
-	current := time.Now().Add(time.Hour * -5) // 1 hour prior + 4 hour UTC-EST difference
-	year := current.Year()
-	month := int(current.Month())
-	day := current.Day()
-	hour := current.Hour()
-
-	key := fmt.Sprintf("%d/%02d/%02d/%02d/%s", year, month, day, hour, uuid.New().String()+"-count.json")
+func (c *Client) PutFile(year, month, day, hour int, file io.Reader) error {
+	key := fmt.Sprintf("%d/%02d/%02d/%02d/count/%s", year, month, day, hour, uuid.New().String()+"-count.json")
 
 	input := &s3.PutObjectInput{
 		Body:   aws.ReadSeekCloser(file),
@@ -65,7 +58,7 @@ func (c *Client) PutFile(file io.Reader) error {
 }
 
 var listFiles = func(client s3Client, year, month string, objects *[]*s3.Object) error {
-	output, err := client.ListObjects(&s3.ListObjectsInput{
+	output, err := client.ListObjectsV2(&s3.ListObjectsV2Input{
 		Bucket: aws.String("comana"),
 		Prefix: aws.String(year + "/" + month),
 	})
@@ -89,36 +82,6 @@ var getFile = func(client s3Client, key string) (io.Reader, error) {
 	}
 
 	return result.Body, nil
-}
-
-// GetFiles retrieves multiple JSON files from S3
-func (c *Client) GetFiles() (map[string]io.Reader, error) {
-	current := time.Now()
-	year := current.Year()
-	month := int(current.Month())
-
-	objects := []*s3.Object{}
-
-	if err := listFiles(c.s3, strconv.Itoa(year), "", &objects); err != nil {
-		return nil, fmt.Errorf("error listing files: %s", err.Error())
-	}
-
-	for i := 1; i <= 12-month; i++ {
-		if err := listFiles(c.s3, strconv.Itoa(year-1), strconv.Itoa(i), &objects); err != nil {
-			return nil, fmt.Errorf("error listing files: %s", err.Error())
-		}
-	}
-
-	output := make(map[string]io.Reader)
-	for _, object := range objects {
-		file, err := getFile(c.s3, *object.Key)
-		if err != nil {
-			return nil, fmt.Errorf("error getting object %s: %s", *object.Key, err.Error())
-		}
-		output[strconv.Itoa(year)+"-"+strconv.Itoa(month)+*object.Key] = file
-	}
-
-	return output, nil
 }
 
 // GetPaths retrieves paths for files stored in S3

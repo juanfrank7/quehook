@@ -26,7 +26,7 @@ type storageMock struct {
 	getObjectError     error
 	getObjectReq       *request.Request
 	getObjectReqOutput *s3.GetObjectOutput
-	listObjectsOutput  *s3.ListObjectsOutput
+	listObjectsOutput  *s3.ListObjectsV2Output
 	listObjectsErr     error
 	putObjectOutput    *s3.PutObjectOutput
 	putObjectErr       error
@@ -36,7 +36,7 @@ func (mock *storageMock) GetObject(input *s3.GetObjectInput) (*s3.GetObjectOutpu
 	return mock.getObjectOutput, mock.getObjectError
 }
 
-func (mock *storageMock) ListObjects(input *s3.ListObjectsInput) (*s3.ListObjectsOutput, error) {
+func (mock *storageMock) ListObjectsV2(input *s3.ListObjectsV2Input) (*s3.ListObjectsV2Output, error) {
 	return mock.listObjectsOutput, mock.listObjectsErr
 }
 
@@ -80,7 +80,7 @@ func TestPutFile(t *testing.T) {
 			},
 		}
 
-		if err := c.PutFile(test.file); err != nil && err.Error() != test.err {
+		if err := c.PutFile(1980, 5, 21, 20, test.file); err != nil && err.Error() != test.err {
 			t.Errorf("description: %s, error received: %s, expected: %s", test.desc, err.Error(), test.err)
 		}
 	}
@@ -89,7 +89,7 @@ func TestPutFile(t *testing.T) {
 func Test_listFiles(t *testing.T) {
 	tests := []struct {
 		desc       string
-		listOutput *s3.ListObjectsOutput
+		listOutput *s3.ListObjectsV2Output
 		listErr    error
 		length     int
 		err        string
@@ -103,9 +103,9 @@ func Test_listFiles(t *testing.T) {
 		},
 		{
 			desc: "successful invocation",
-			listOutput: &s3.ListObjectsOutput{
+			listOutput: &s3.ListObjectsV2Output{
 				Contents: []*s3.Object{
-					&s3.Object{
+					{
 						Key: aws.String("a-new-hope"),
 					},
 				},
@@ -164,66 +164,6 @@ func Test_getFile(t *testing.T) {
 
 		if _, err := getFile(c, "key"); err != nil && err.Error() != test.err {
 			t.Errorf("description: %s, error received: %s, expected: %s", test.desc, err.Error(), test.err)
-		}
-	}
-}
-
-func TestGetFiles(t *testing.T) {
-	tests := []struct {
-		desc      string
-		listErr   error
-		getOutput io.Reader
-		getErr    error
-		outputLen int
-		err       string
-	}{
-		{
-			desc:      "list files error",
-			listErr:   errors.New("listing error"),
-			getOutput: strings.NewReader("mock"),
-			getErr:    nil,
-			outputLen: 0,
-			err:       "error listing files: listing error",
-		},
-		{
-			desc:      "get file error",
-			listErr:   nil,
-			getOutput: strings.NewReader("mock"),
-			getErr:    errors.New("get error"),
-			outputLen: 0,
-			err:       "error getting object test-key: get error",
-		},
-		{
-			desc:      "successful invocation",
-			listErr:   nil,
-			getOutput: strings.NewReader("mock"),
-			getErr:    nil,
-			outputLen: 1, // there is only one key in the map
-			err:       "",
-		},
-	}
-
-	for _, test := range tests {
-		c := &Client{}
-
-		listFiles = func(client s3Client, year, month string, objects *[]*s3.Object) error {
-			*objects = append(*objects, &s3.Object{
-				Key: aws.String("test-key"),
-			})
-			return test.listErr
-		}
-
-		getFile = func(client s3Client, key string) (io.Reader, error) {
-			return test.getOutput, test.getErr
-		}
-
-		output, err := c.GetFiles()
-		if err != nil && err.Error() != test.err {
-			t.Errorf("description: %s, error received: %s, expected: %s", test.desc, err.Error(), test.err)
-		}
-
-		if output != nil && len(output) != test.outputLen {
-			t.Errorf("description: %s, length received: %d, expected: %d", test.desc, len(output), test.outputLen)
 		}
 	}
 }

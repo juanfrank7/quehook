@@ -9,13 +9,11 @@ before_install:
 install:
   - go get -t -v ./...
 script:
-  - if [ -n "$(gofmt -l .)" ]; then echo "gofmt failed" ; exit 1 ; else echo "gofmt
-    succeeded" ; fi
+  - if [ -n "$(gofmt -l .)" ]; then echo "gofmt failed" ; exit 1 ; else echo "gofmt succeeded" ; fi
   - golint -set_exit_status
   - go build ./...
   - go test -v -race github.com/forstmeier/comana/handlers -coverprofile=handlers.coverprofile
   - go test -v -race github.com/forstmeier/comana/storage -coverprofile=storage.coverprofile
-  # - go test -v -race github.com/forstmeier/comana -coverprofile=comana.coverprofile
   - gover
   - "$GOPATH/bin/goveralls -coverprofile=gover.coverprofile -service=travis-ci"
   - rm *.coverprofile
@@ -24,8 +22,10 @@ after_success:
   - export PATH=$PATH:$HOME/.local/bin
 deploy:
   - provider: script
-    script:
-      - go build && zip comana.zip comana && aws lambda update-function-code --function-name comana --zip-file fileb://comana.zip --region us-east-1
+    script: bash deploy.sh
+    on:
+      repo: forstmeier/comana
+      all_branches: true
     skip_cleanup: true
 notifications:
   email: false
