@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"strconv"
 
 	"github.com/aws/aws-lambda-go/events"

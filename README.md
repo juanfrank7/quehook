@@ -17,17 +17,9 @@ For instructions on how to retrieve data and reports from the application, check
 A simple MVP is the initial target for the launch but expanded functionality and a smoother application interface will be rolled out in the immediately subsequent versions. Below is the roadmap (although not necessary in chronological order):
 
 - [ ] embedded AWS QuickSight dashboard in landing page
-  - _resources_: Athena, QuickSight, and compressed report files
-  - this will also be available but likely behind a small paywall since there are costs associated with Athena
 - [ ] "boosted" repo status for projects actively building communities
-  - _resources_: API Gateway, DynamoDB, TTL, BuyMeACoffee, and updated API releases
-  - this could be relatively easy to set up but I don't want to release it until some more datapoints/groupings are available
 - [ ] expanded datapoint availability including percentages, deltas, and original statistics
-  - _resources_: Step Functions, Lambda, S3, and general data analysis
-  - this will be a longer-running process since it will need to include not only different types of data but different groupings of it; stuff like forward projections especially will need some outside contribution to make happen
 - [ ] filtering options for fetching data from application
-  -  _resources_: Step Functions, Lambda, API Gateway, updated handler logic
-  - this will include the ability to filter for different amounts, groupings, and types of data; the first release will focus on the existing count datapoints
 
 ## :green_book: FAQ
 

@@ -73,6 +73,9 @@ p {
 
 .snippet {
   font-family: 'Source Code Pro', monospace;
+  background-color: #D4D4D4;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
 }
 
 @media only screen and (max-width: 767px) {
