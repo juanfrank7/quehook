@@ -128,7 +128,7 @@ func SaveData(req Request, s storage.Storage) (events.APIGatewayProxyResponse, e
 		}, err
 	}
 
-	if err := s.PutFile(year, month, day, hour, reader); err != nil {
+	if err := s.PutFile(year, month, day, hour, "per-repo-count", reader); err != nil {
 		log.Println("error saving report file: " + err.Error())
 		return events.APIGatewayProxyResponse{
 			StatusCode:      500,

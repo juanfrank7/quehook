@@ -23,7 +23,7 @@ type s3Client interface {
 
 // Storage provides helper methods for persisting/retrieving files
 type Storage interface {
-	PutFile(int, int, int, int, io.Reader) error
+	PutFile(int, int, int, int, string, io.Reader) error
 	GetPaths() ([]string, error)
 }
 
@@ -40,8 +40,8 @@ func New() Storage {
 }
 
 // PutFile persists a JSON file in S3
-func (c *Client) PutFile(year, month, day, hour int, file io.Reader) error {
-	key := fmt.Sprintf("%d/%02d/%02d/%02d/count/%s", year, month, day, hour, uuid.New().String()+"-count.json")
+func (c *Client) PutFile(year, month, day, hour int, suffix string, file io.Reader) error {
+	key := fmt.Sprintf("%d/%02d/%02d/%02d/count/%s", year, month, day, hour, uuid.New().String()+"-"+suffix+".json")
 
 	input := &s3.PutObjectInput{
 		Body:   aws.ReadSeekCloser(file),

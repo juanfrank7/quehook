@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/request"
@@ -80,7 +81,7 @@ func TestPutFile(t *testing.T) {
 			},
 		}
 
-		if err := c.PutFile(1980, 5, 21, 20, test.file); err != nil && err.Error() != test.err {
+		if err := c.PutFile(1980, 5, 21, 20, "vi", test.file); err != nil && err.Error() != test.err {
 			t.Errorf("description: %s, error received: %s, expected: %s", test.desc, err.Error(), test.err)
 		}
 	}
@@ -211,7 +212,7 @@ func TestGetPaths(t *testing.T) {
 				},
 			},
 			getObjectReqOutput: nil,
-			outputLen:          5,
+			outputLen:          12 - int(time.Now().Month()) + 1, // Due to time.Now() used in GetPaths method
 			err:                "",
 		},
 	}

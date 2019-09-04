@@ -21,7 +21,7 @@ type mockStorage struct {
 	getPathsErr error
 }
 
-func (m *mockStorage) PutFile(int, int, int, int, io.Reader) error {
+func (m *mockStorage) PutFile(int, int, int, int, string, io.Reader) error {
 	return m.putFileErr
 }
 
