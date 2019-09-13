@@ -25,7 +25,7 @@ deploy:
     script: bash deploy.sh
     on:
       repo: forstmeier/comana
-      all_branches: true
+      # all_branches: true
     skip_cleanup: true
 notifications:
   email: false
