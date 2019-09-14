@@ -5,14 +5,12 @@ import (
 	"io"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 )
 
 type s3Client interface {
 	GetObject(input *s3.GetObjectInput) (*s3.GetObjectOutput, error)
-	GetObjectRequest(input *s3.GetObjectInput) (req *request.Request, output *s3.GetObjectOutput)
 	ListObjectsV2(input *s3.ListObjectsV2Input) (*s3.ListObjectsV2Output, error)
 	PutObject(input *s3.PutObjectInput) (*s3.PutObjectOutput, error)
 }
@@ -73,6 +71,7 @@ func (c *Client) GetPaths() ([]string, error) {
 		Bucket: aws.String("comana"),
 		Prefix: aws.String("queries"),
 	})
+
 	if err != nil {
 		return nil, fmt.Errorf("error listing files: %s", err.Error())
 	}
