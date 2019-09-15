@@ -10,7 +10,7 @@ import (
 
 type dynamoDBClient interface {
 	PutItem(input *dynamodb.PutItemInput) (*dynamodb.PutItemOutput, error)
-	GetItem(input *dynamodb.GetItemInput) (*dynamodb.GetItemOutput, error)
+	BatchGetItem(input *dynamodb.BatchGetItemInput) (*dynamodb.BatchGetItemOutput, error)
 	DeleteItem(input *dynamodb.DeleteItemInput) (*dynamodb.DeleteItemOutput, error)
 }
 
@@ -72,32 +72,39 @@ func (c *Client) Add(table string, items ...string) error {
 
 // Get retrieves an item from DynamoDB
 func (c *Client) Get(table string, items ...string) (bool, error) {
-	input := &dynamodb.GetItemInput{}
+	input := &dynamodb.BatchGetItemInput{}
 
 	if table == "subscribers" {
-		input = &dynamodb.GetItemInput{
-			Key: map[string]*dynamodb.AttributeValue{
-				"query": {
-					S: aws.String(items[0]),
-				},
-				"name": {
-					S: aws.String(items[1]),
+		input = &dynamodb.BatchGetItemInput{
+			RequestItems: map[string]*dynamodb.KeysAndAttributes{
+				"subscribers": &dynamodb.KeysAndAttributes{
+					Keys: []map[string]*dynamodb.AttributeValue{
+						map[string]*dynamodb.AttributeValue{
+							"query": {
+								S: aws.String(items[0]),
+							},
+						},
+					},
 				},
 			},
-			TableName: aws.String(table),
 		}
 	} else if table == "queries" {
-		input = &dynamodb.GetItemInput{
-			Key: map[string]*dynamodb.AttributeValue{
-				"query": {
-					S: aws.String(items[0]),
+		input = &dynamodb.BatchGetItemInput{
+			RequestItems: map[string]*dynamodb.KeysAndAttributes{
+				"subscribers": &dynamodb.KeysAndAttributes{
+					Keys: []map[string]*dynamodb.AttributeValue{
+						map[string]*dynamodb.AttributeValue{
+							"query": {
+								S: aws.String(items[0]),
+							},
+						},
+					},
 				},
 			},
-			TableName: aws.String(table),
 		}
 	}
 
-	_, err := c.dynamodb.GetItem(input)
+	_, err := c.dynamodb.BatchGetItem(input)
 	if err != nil {
 		return false, fmt.Errorf("get item error: %s", err.Error())
 	}
@@ -114,7 +121,7 @@ func (c *Client) Remove(table string, items ...string) error {
 				"query": {
 					S: aws.String(items[0]),
 				},
-				"name": {
+				"subname": {
 					S: aws.String(items[1]),
 				},
 			},

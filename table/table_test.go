@@ -10,7 +10,7 @@ import (
 type tableMock struct {
 	putItemOutput    *dynamodb.PutItemOutput
 	putItemError     error
-	getItemOutput    *dynamodb.GetItemOutput
+	getItemOutput    *dynamodb.BatchGetItemOutput
 	getItemError     error
 	deleteItemOutput *dynamodb.DeleteItemOutput
 	deleteItemError  error
@@ -20,7 +20,7 @@ func (mock *tableMock) PutItem(input *dynamodb.PutItemInput) (*dynamodb.PutItemO
 	return mock.putItemOutput, mock.putItemError
 }
 
-func (mock *tableMock) GetItem(input *dynamodb.GetItemInput) (*dynamodb.GetItemOutput, error) {
+func (mock *tableMock) BatchGetItem(input *dynamodb.BatchGetItemInput) (*dynamodb.BatchGetItemOutput, error) {
 	return mock.getItemOutput, mock.getItemError
 }
 
@@ -90,7 +90,7 @@ func TestGet(t *testing.T) {
 		desc          string
 		table         string
 		items         []string
-		getItemOutput *dynamodb.GetItemOutput // kept for possible method expansion
+		getItemOutput *dynamodb.BatchGetItemOutput // kept for possible method expansion
 		getItemError  error
 		check         bool
 		err           string
