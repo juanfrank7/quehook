@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 )
 
@@ -90,7 +91,7 @@ func TestGet(t *testing.T) {
 		desc          string
 		table         string
 		items         []string
-		getItemOutput *dynamodb.BatchGetItemOutput // kept for possible method expansion
+		getItemOutput *dynamodb.BatchGetItemOutput
 		getItemError  error
 		check         bool
 		err           string
@@ -114,10 +115,23 @@ func TestGet(t *testing.T) {
 				"subname",
 				"target",
 			},
-			getItemOutput: nil,
-			getItemError:  nil,
-			check:         true,
-			err:           "",
+			getItemOutput: &dynamodb.BatchGetItemOutput{
+				Responses: map[string][]map[string]*dynamodb.AttributeValue{
+					"subscribers": []map[string]*dynamodb.AttributeValue{
+						map[string]*dynamodb.AttributeValue{
+							"query": {
+								S: aws.String("test-query"),
+							},
+							"target": {
+								S: aws.String("test-target"),
+							},
+						},
+					},
+				},
+			},
+			getItemError: nil,
+			check:        true,
+			err:          "",
 		},
 		{
 			desc:  "successful queries invocation",
@@ -125,10 +139,23 @@ func TestGet(t *testing.T) {
 			items: []string{
 				"query",
 			},
-			getItemOutput: nil,
-			getItemError:  nil,
-			check:         true,
-			err:           "",
+			getItemOutput: &dynamodb.BatchGetItemOutput{
+				Responses: map[string][]map[string]*dynamodb.AttributeValue{
+					"subscribers": []map[string]*dynamodb.AttributeValue{
+						map[string]*dynamodb.AttributeValue{
+							"query": {
+								S: aws.String("test-query"),
+							},
+							"target": {
+								S: aws.String("test-target"),
+							},
+						},
+					},
+				},
+			},
+			getItemError: nil,
+			check:        true,
+			err:          "",
 		},
 	}
 
@@ -140,7 +167,7 @@ func TestGet(t *testing.T) {
 			},
 		}
 
-		check, err := c.Get(test.table, test.items...)
+		_, check, err := c.Get(test.table, test.items...)
 
 		if check != test.check {
 			t.Errorf("description: %s, check received: %t, expected: %t", test.desc, check, test.check)

@@ -17,7 +17,7 @@ type dynamoDBClient interface {
 // Table provides helper methods for persisting/retrieving/deleting items
 type Table interface {
 	Add(table string, items ...string) error
-	Get(table string, items ...string) (bool, error)
+	Get(table string, items ...string) ([]string, bool, error)
 	Remove(table string, item ...string) error
 }
 
@@ -71,44 +71,32 @@ func (c *Client) Add(table string, items ...string) error {
 }
 
 // Get retrieves an item from DynamoDB
-func (c *Client) Get(table string, items ...string) (bool, error) {
-	input := &dynamodb.BatchGetItemInput{}
-
-	if table == "subscribers" {
-		input = &dynamodb.BatchGetItemInput{
-			RequestItems: map[string]*dynamodb.KeysAndAttributes{
-				"subscribers": &dynamodb.KeysAndAttributes{
-					Keys: []map[string]*dynamodb.AttributeValue{
-						map[string]*dynamodb.AttributeValue{
-							"query": {
-								S: aws.String(items[0]),
-							},
+func (c *Client) Get(table string, items ...string) ([]string, bool, error) {
+	input := &dynamodb.BatchGetItemInput{
+		RequestItems: map[string]*dynamodb.KeysAndAttributes{
+			table: &dynamodb.KeysAndAttributes{
+				Keys: []map[string]*dynamodb.AttributeValue{
+					map[string]*dynamodb.AttributeValue{
+						"query": {
+							S: aws.String(items[0]),
 						},
 					},
 				},
 			},
-		}
-	} else if table == "queries" {
-		input = &dynamodb.BatchGetItemInput{
-			RequestItems: map[string]*dynamodb.KeysAndAttributes{
-				"subscribers": &dynamodb.KeysAndAttributes{
-					Keys: []map[string]*dynamodb.AttributeValue{
-						map[string]*dynamodb.AttributeValue{
-							"query": {
-								S: aws.String(items[0]),
-							},
-						},
-					},
-				},
-			},
-		}
+		},
 	}
 
-	_, err := c.dynamodb.BatchGetItem(input)
+	output, err := c.dynamodb.BatchGetItem(input)
 	if err != nil {
-		return false, fmt.Errorf("get item error: %s", err.Error())
+		return nil, false, fmt.Errorf("get item error: %s", err.Error())
 	}
-	return true, nil
+
+	targets := []string{}
+	for _, result := range output.Responses[table] {
+		targets = append(targets, result["target"].GoString())
+	}
+
+	return targets, true, nil
 }
 
 // Remove deletes an item from DynamoDB
