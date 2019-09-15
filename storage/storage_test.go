@@ -20,12 +20,14 @@ func TestNew(t *testing.T) {
 }
 
 type storageMock struct {
-	getObjectOutput   *s3.GetObjectOutput
-	getObjectError    error
-	listObjectsOutput *s3.ListObjectsV2Output
-	listObjectsErr    error
-	putObjectOutput   *s3.PutObjectOutput
-	putObjectErr      error
+	getObjectOutput    *s3.GetObjectOutput
+	getObjectError     error
+	listObjectsOutput  *s3.ListObjectsV2Output
+	listObjectsErr     error
+	putObjectOutput    *s3.PutObjectOutput
+	putObjectErr       error
+	deleteObjectOutput *s3.DeleteObjectOutput
+	deleteObjectErr    error
 }
 
 func (mock *storageMock) GetObject(input *s3.GetObjectInput) (*s3.GetObjectOutput, error) {
@@ -38,6 +40,10 @@ func (mock *storageMock) ListObjectsV2(input *s3.ListObjectsV2Input) (*s3.ListOb
 
 func (mock *storageMock) PutObject(input *s3.PutObjectInput) (*s3.PutObjectOutput, error) {
 	return mock.putObjectOutput, mock.putObjectErr
+}
+
+func (mock *storageMock) DeleteObject(input *s3.DeleteObjectInput) (*s3.DeleteObjectOutput, error) {
+	return mock.deleteObjectOutput, mock.deleteObjectErr
 }
 
 func TestPutFile(t *testing.T) {
@@ -177,5 +183,42 @@ func TestGetPaths(t *testing.T) {
 			t.Errorf("description: %s, error received: %s, expected: %s", test.desc, err.Error(), test.err)
 		}
 
+	}
+}
+
+func TestDeleteFile(t *testing.T) {
+	tests := []struct {
+		desc               string
+		deleteObjectOutput *s3.DeleteObjectOutput
+		deleteObjectErr    error
+		err                string
+	}{
+		{
+			desc:               "delete file error",
+			deleteObjectOutput: nil,
+			deleteObjectErr:    errors.New("mock delete error"),
+			err:                "error deleting file: mock delete error",
+		},
+		{
+			desc:               "successful invocation",
+			deleteObjectOutput: nil,
+			deleteObjectErr:    nil,
+			err:                "",
+		},
+	}
+
+	for _, test := range tests {
+		c := &Client{
+			s3: &storageMock{
+				deleteObjectOutput: test.deleteObjectOutput,
+				deleteObjectErr:    test.deleteObjectErr,
+			},
+		}
+
+		err := c.DeleteFile("test-key")
+
+		if err != nil && err.Error() != test.err {
+			t.Errorf("description: %s, error received: %s, expected: %s", test.desc, err.Error(), test.err)
+		}
 	}
 }

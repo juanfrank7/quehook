@@ -13,6 +13,7 @@ type s3Client interface {
 	GetObject(input *s3.GetObjectInput) (*s3.GetObjectOutput, error)
 	ListObjectsV2(input *s3.ListObjectsV2Input) (*s3.ListObjectsV2Output, error)
 	PutObject(input *s3.PutObjectInput) (*s3.PutObjectOutput, error)
+	DeleteObject(input *s3.DeleteObjectInput) (*s3.DeleteObjectOutput, error)
 }
 
 // Storage provides helper methods for persisting/retrieving files
@@ -36,13 +37,12 @@ func New() Storage {
 
 // PutFile persists a JSON file in S3
 func (c *Client) PutFile(key string, file io.Reader) error {
-	input := &s3.PutObjectInput{
+	_, err := c.s3.PutObject(&s3.PutObjectInput{
 		Body:   aws.ReadSeekCloser(file),
 		Bucket: aws.String("comana"),
 		Key:    aws.String(key),
-	}
+	})
 
-	_, err := c.s3.PutObject(input)
 	if err != nil {
 		return fmt.Errorf("error putting file: %s", err.Error())
 	}
@@ -52,12 +52,11 @@ func (c *Client) PutFile(key string, file io.Reader) error {
 
 // GetFile retrieves a given file stored in S3
 func (c *Client) GetFile(key string) (io.Reader, error) {
-	input := &s3.GetObjectInput{
+	result, err := c.s3.GetObject(&s3.GetObjectInput{
 		Bucket: aws.String("comana"),
 		Key:    aws.String(key),
-	}
+	})
 
-	result, err := c.s3.GetObject(input)
 	if err != nil {
 		return nil, fmt.Errorf("error getting object %s: %s", key, err.Error())
 	}
@@ -82,4 +81,18 @@ func (c *Client) GetPaths() ([]string, error) {
 	}
 
 	return paths, nil
+}
+
+// DeleteFile removes a query file from S3
+func (c *Client) DeleteFile(key string) error {
+	_, err := c.s3.DeleteObject(&s3.DeleteObjectInput{
+		Bucket: aws.String("comana"),
+		Key:    aws.String(key),
+	})
+
+	if err != nil {
+		return fmt.Errorf("error deleting file: %s", err.Error())
+	}
+
+	return nil
 }
