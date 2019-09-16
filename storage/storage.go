@@ -21,6 +21,7 @@ type Storage interface {
 	PutFile(string, io.Reader) error
 	GetFile(string) (io.Reader, error)
 	GetPaths() ([]string, error)
+	DeleteFile(string) error
 }
 
 // Client implements the S3 interface

@@ -3,6 +3,7 @@ package query
 import (
 	"errors"
 	"io"
+	"os"
 	"testing"
 
 	"cloud.google.com/go/bigquery"
@@ -35,18 +36,23 @@ type mockStorage struct {
 	getErr      error
 	pathsOutput []string
 	pathsErr    error
+	deleteErr   error
 }
 
 func (mock *mockStorage) PutFile(key string, file io.Reader) error {
 	return mock.putErr
 }
 
-func (mock *mockStorage) GetFile(string) (io.Reader, error) {
+func (mock *mockStorage) GetFile(key string) (io.Reader, error) {
 	return mock.getOutput, mock.getErr
 }
 
 func (mock *mockStorage) GetPaths() ([]string, error) {
 	return mock.pathsOutput, mock.pathsErr
+}
+
+func (mock *mockStorage) DeleteFile(key string) error {
+	return mock.deleteErr
 }
 
 func TestCreate(t *testing.T) {
@@ -220,6 +226,119 @@ func TestRun(t *testing.T) {
 		}
 
 		resp, err := Run(bq, stg, tbl)
+
+		if err != nil && err.Error() != test.err {
+			t.Errorf("description: %s, error received: %s, expected: %s", test.desc, err.Error(), test.err)
+		}
+
+		if resp.StatusCode != test.status {
+			t.Errorf("description: %s, status received: %d, expected: %d", test.desc, resp.StatusCode, test.status)
+		}
+	}
+}
+
+func TestDelete(t *testing.T) {
+	tests := []struct {
+		desc      string
+		req       events.APIGatewayProxyRequest
+		getCheck  bool
+		getErr    error
+		deleteErr error
+		removeErr error
+		status    int
+		err       string
+	}{
+		{
+			desc: "incorrect secret",
+			req: events.APIGatewayProxyRequest{
+				Headers: map[string]string{
+					"COMANA_SECRET": "wrong-test-secret",
+				},
+			},
+			getCheck:  false,
+			getErr:    nil,
+			deleteErr: nil,
+			removeErr: nil,
+			status:    500,
+			err:       "incorrect secret received: wrong-test-secret",
+		},
+		{
+			desc: "get file error",
+			req: events.APIGatewayProxyRequest{
+				Headers: map[string]string{
+					"COMANA_SECRET": "test-secret",
+				},
+				Body: `{"query": "test-query"}`,
+			},
+			getCheck:  false,
+			getErr:    errors.New("mock get error"),
+			deleteErr: nil,
+			removeErr: nil,
+			status:    500,
+			err:       "incorrect getting query: mock get error",
+		},
+		{
+			desc: "delete file error",
+			req: events.APIGatewayProxyRequest{
+				Headers: map[string]string{
+					"COMANA_SECRET": "test-secret",
+				},
+				Body: `{"query": "test-query"}`,
+			},
+			getCheck:  true,
+			getErr:    nil,
+			deleteErr: errors.New("mock delete error"),
+			removeErr: nil,
+			status:    500,
+			err:       "incorrect deleting query file: mock delete error",
+		},
+		{
+			desc: "delete item error",
+			req: events.APIGatewayProxyRequest{
+				Headers: map[string]string{
+					"COMANA_SECRET": "test-secret",
+				},
+				Body: `{"query": "test-query"}`,
+			},
+			getCheck:  true,
+			getErr:    nil,
+			deleteErr: nil,
+			removeErr: errors.New("mock delete error"),
+			status:    500,
+			err:       "incorrect removing query item: mock delete error",
+		},
+		{
+			desc: "successful invocation",
+			req: events.APIGatewayProxyRequest{
+				Headers: map[string]string{
+					"COMANA_SECRET": "test-secret",
+				},
+				Body: `{"query": "test-query"}`,
+			},
+			getCheck:  true,
+			getErr:    nil,
+			deleteErr: nil,
+			removeErr: nil,
+			status:    200,
+			err:       "",
+		},
+	}
+
+	for _, test := range tests {
+		os.Setenv("COMANA_SECRET", "test-secret")
+
+		tbl := &mockTable{
+			getOutput: nil,
+			getCheck:  test.getCheck,
+			getErr:    test.getErr,
+			removeErr: test.removeErr,
+		}
+
+		stg := &mockStorage{
+			deleteErr: test.deleteErr,
+		}
+
+		resp, err := Delete(test.req, tbl, stg)
 
 		if err != nil && err.Error() != test.err {
 			t.Errorf("description: %s, error received: %s, expected: %s", test.desc, err.Error(), test.err)

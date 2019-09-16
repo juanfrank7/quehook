@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 
 	"cloud.google.com/go/bigquery"
@@ -166,21 +167,66 @@ func Run(bq BQClient, s storage.Storage, t table.Table) (events.APIGatewayProxyR
 }
 
 // Delete removes a query from S3 - internal use only
-func Delete(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+func Delete(request events.APIGatewayProxyRequest, t table.Table, s storage.Storage) (events.APIGatewayProxyResponse, error) {
+	if request.Headers["COMANA_SECRET"] != os.Getenv("COMANA_SECRET") {
+		return events.APIGatewayProxyResponse{
+			StatusCode:      500,
+			Body:            "incorrect secret received: " + request.Headers["COMANA_SECRET"],
+			IsBase64Encoded: false,
+		}, fmt.Errorf("incorrect secret received: %s", request.Headers["COMANA_SECRET"])
+	}
 
-	// outline:
-	// [ ] parse secret from request
-	// [ ] parse query name from request
-	// [ ] check if secret is valid
-	// - [ ] true: continue
-	// - [ ] false: return error
-	// [ ] check if query exists in dynamodb
-	// - [ ] true:
-	// - - [ ] delete file from s3
-	// - - [ ] delete query name from dynamodb
-	// - [ ] false:
-	// - - [ ] return error
-	// [ ] return success
+	body := struct {
+		query string
+	}{}
 
-	return events.APIGatewayProxyResponse{}, nil
+	if err := json.Unmarshal([]byte(request.Body), &body); err != nil {
+		return events.APIGatewayProxyResponse{
+			StatusCode:      500,
+			Body:            "error parsing request body: " + err.Error(),
+			IsBase64Encoded: false,
+		}, fmt.Errorf("incorrect secret received: %s", err.Error())
+	}
+
+	_, check, err := t.Get("queries", body.query)
+
+	if err != nil {
+		return events.APIGatewayProxyResponse{
+			StatusCode:      500,
+			Body:            "error getting query: " + err.Error(),
+			IsBase64Encoded: false,
+		}, fmt.Errorf("incorrect getting query: %s", err.Error())
+	}
+
+	if check {
+		if err := s.DeleteFile(body.query); err != nil {
+			return events.APIGatewayProxyResponse{
+				StatusCode:      500,
+				Body:            "error deleting query file: " + err.Error(),
+				IsBase64Encoded: false,
+			}, fmt.Errorf("incorrect deleting query file: %s", err.Error())
+		}
+
+		if err := t.Remove("queries", body.query); err != nil {
+			return events.APIGatewayProxyResponse{
+				StatusCode:      500,
+				Body:            "error removing query item: " + err.Error(),
+				IsBase64Encoded: false,
+			}, fmt.Errorf("incorrect removing query item: %s", err.Error())
+		}
+
+		if err := t.Remove("subscribers", body.query, ""); err != nil {
+			return events.APIGatewayProxyResponse{
+				StatusCode:      500,
+				Body:            "error removing subscribers items: " + err.Error(),
+				IsBase64Encoded: false,
+			}, fmt.Errorf("incorrect removing subscribers items: %s", err.Error())
+		}
+	}
+
+	return events.APIGatewayProxyResponse{
+		StatusCode:      200,
+		Body:            "success",
+		IsBase64Encoded: false,
+	}, nil
 }
