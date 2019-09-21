@@ -12,8 +12,8 @@ script:
   - if [ -n "$(gofmt -l .)" ]; then echo "gofmt failed" ; exit 1 ; else echo "gofmt succeeded" ; fi
   - golint -set_exit_status
   - go build ./...
-  - go test -v -race github.com/forstmeier/comana/handlers -coverprofile=handlers.coverprofile
-  - go test -v -race github.com/forstmeier/comana/storage -coverprofile=storage.coverprofile
+  - go test -v -race github.com/forstmeier/quehook/handlers -coverprofile=handlers.coverprofile
+  - go test -v -race github.com/forstmeier/quehook/storage -coverprofile=storage.coverprofile
   - gover
   - "$GOPATH/bin/goveralls -coverprofile=gover.coverprofile -service=travis-ci"
   - rm *.coverprofile
@@ -24,7 +24,7 @@ deploy:
   - provider: script
     script: bash deploy.sh
     on:
-      repo: forstmeier/comana
+      repo: forstmeier/quehook
       # all_branches: true
     skip_cleanup: true
 notifications:

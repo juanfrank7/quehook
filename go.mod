@@ -1,4 +1,4 @@
-module github.com/forstmeier/comana
+module github.com/forstmeier/quehook
 
 go 1.12
 

@@ -13,8 +13,8 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 	"google.golang.org/api/iterator"
 
-	"github.com/forstmeier/comana/storage"
-	"github.com/forstmeier/comana/table"
+	"github.com/forstmeier/quehook/storage"
+	"github.com/forstmeier/quehook/table"
 )
 
 // Create adds a query to S3 for periodic execution
@@ -68,7 +68,7 @@ type BQClient interface {
 
 // NewClient creates a new BigQuery client implementation
 func NewClient() (BQClient, error) {
-	return bigquery.NewClient(context.Background(), "comana")
+	return bigquery.NewClient(context.Background(), "quehook")
 }
 
 // Run executes all stored queries and returns results to subscribers
@@ -168,12 +168,12 @@ func Run(bq BQClient, s storage.Storage, t table.Table) (events.APIGatewayProxyR
 
 // Delete removes a query from S3 - internal use only
 func Delete(request events.APIGatewayProxyRequest, t table.Table, s storage.Storage) (events.APIGatewayProxyResponse, error) {
-	if request.Headers["COMANA_SECRET"] != os.Getenv("COMANA_SECRET") {
+	if request.Headers["QUEHOOK_SECRET"] != os.Getenv("QUEHOOK_SECRET") {
 		return events.APIGatewayProxyResponse{
 			StatusCode:      500,
-			Body:            "incorrect secret received: " + request.Headers["COMANA_SECRET"],
+			Body:            "incorrect secret received: " + request.Headers["QUEHOOK_SECRET"],
 			IsBase64Encoded: false,
-		}, fmt.Errorf("incorrect secret received: %s", request.Headers["COMANA_SECRET"])
+		}, fmt.Errorf("incorrect secret received: %s", request.Headers["QUEHOOK_SECRET"])
 	}
 
 	body := struct {

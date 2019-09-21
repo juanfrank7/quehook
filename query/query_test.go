@@ -252,7 +252,7 @@ func TestDelete(t *testing.T) {
 			desc: "incorrect secret",
 			req: events.APIGatewayProxyRequest{
 				Headers: map[string]string{
-					"COMANA_SECRET": "wrong-test-secret",
+					"QUEHOOK_SECRET": "wrong-test-secret",
 				},
 			},
 			getCheck:  false,
@@ -266,7 +266,7 @@ func TestDelete(t *testing.T) {
 			desc: "get file error",
 			req: events.APIGatewayProxyRequest{
 				Headers: map[string]string{
-					"COMANA_SECRET": "test-secret",
+					"QUEHOOK_SECRET": "test-secret",
 				},
 				Body: `{"query": "test-query"}`,
 			},
@@ -281,7 +281,7 @@ func TestDelete(t *testing.T) {
 			desc: "delete file error",
 			req: events.APIGatewayProxyRequest{
 				Headers: map[string]string{
-					"COMANA_SECRET": "test-secret",
+					"QUEHOOK_SECRET": "test-secret",
 				},
 				Body: `{"query": "test-query"}`,
 			},
@@ -296,7 +296,7 @@ func TestDelete(t *testing.T) {
 			desc: "delete item error",
 			req: events.APIGatewayProxyRequest{
 				Headers: map[string]string{
-					"COMANA_SECRET": "test-secret",
+					"QUEHOOK_SECRET": "test-secret",
 				},
 				Body: `{"query": "test-query"}`,
 			},
@@ -311,7 +311,7 @@ func TestDelete(t *testing.T) {
 			desc: "successful invocation",
 			req: events.APIGatewayProxyRequest{
 				Headers: map[string]string{
-					"COMANA_SECRET": "test-secret",
+					"QUEHOOK_SECRET": "test-secret",
 				},
 				Body: `{"query": "test-query"}`,
 			},
@@ -325,7 +325,7 @@ func TestDelete(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		os.Setenv("COMANA_SECRET", "test-secret")
+		os.Setenv("QUEHOOK_SECRET", "test-secret")
 
 		tbl := &mockTable{
 			getOutput: nil,

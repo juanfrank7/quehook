@@ -40,7 +40,7 @@ func New() Storage {
 func (c *Client) PutFile(key string, file io.Reader) error {
 	_, err := c.s3.PutObject(&s3.PutObjectInput{
 		Body:   aws.ReadSeekCloser(file),
-		Bucket: aws.String("comana"),
+		Bucket: aws.String("quehook"),
 		Key:    aws.String(key),
 	})
 
@@ -54,7 +54,7 @@ func (c *Client) PutFile(key string, file io.Reader) error {
 // GetFile retrieves a given file stored in S3
 func (c *Client) GetFile(key string) (io.Reader, error) {
 	result, err := c.s3.GetObject(&s3.GetObjectInput{
-		Bucket: aws.String("comana"),
+		Bucket: aws.String("quehook"),
 		Key:    aws.String(key),
 	})
 
@@ -68,7 +68,7 @@ func (c *Client) GetFile(key string) (io.Reader, error) {
 // GetPaths retrieves paths for files stored in S3
 func (c *Client) GetPaths() ([]string, error) {
 	output, err := c.s3.ListObjectsV2(&s3.ListObjectsV2Input{
-		Bucket: aws.String("comana"),
+		Bucket: aws.String("quehook"),
 		Prefix: aws.String("queries"),
 	})
 
@@ -87,7 +87,7 @@ func (c *Client) GetPaths() ([]string, error) {
 // DeleteFile removes a query file from S3
 func (c *Client) DeleteFile(key string) error {
 	_, err := c.s3.DeleteObject(&s3.DeleteObjectInput{
-		Bucket: aws.String("comana"),
+		Bucket: aws.String("quehook"),
 		Key:    aws.String(key),
 	})
 
