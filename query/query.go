@@ -21,7 +21,7 @@ import (
 func Create(request events.APIGatewayProxyRequest, t table.Table, s storage.Storage) (events.APIGatewayProxyResponse, error) {
 	queryName := request.QueryStringParameters["query_name"]
 
-	_, check, err := t.Get("queries", queryName)
+	output, err := t.Get("queries", queryName)
 	if err != nil {
 		return events.APIGatewayProxyResponse{
 			StatusCode:      500,
@@ -30,7 +30,7 @@ func Create(request events.APIGatewayProxyRequest, t table.Table, s storage.Stor
 		}, fmt.Errorf("error getting query table: %s", err.Error())
 	}
 
-	if check == false {
+	if len(output) == 0 {
 		if err := t.Add("queries", queryName); err != nil {
 			return events.APIGatewayProxyResponse{
 				StatusCode:      500,
@@ -134,7 +134,7 @@ func Run(bq BQClient, s storage.Storage, t table.Table) (events.APIGatewayProxyR
 			}, fmt.Errorf("error marshalling output: %s", err.Error())
 		}
 
-		subscribers, _, err := t.Get("subscribers", query)
+		subscribers, err := t.Get("subscribers", query)
 		if err != nil {
 			return events.APIGatewayProxyResponse{
 				StatusCode:      500,
@@ -188,7 +188,7 @@ func Delete(request events.APIGatewayProxyRequest, t table.Table, s storage.Stor
 		}, fmt.Errorf("incorrect secret received: %s", err.Error())
 	}
 
-	_, check, err := t.Get("queries", body.query)
+	output, err := t.Get("queries", body.query)
 
 	if err != nil {
 		return events.APIGatewayProxyResponse{
@@ -198,7 +198,7 @@ func Delete(request events.APIGatewayProxyRequest, t table.Table, s storage.Stor
 		}, fmt.Errorf("incorrect getting query: %s", err.Error())
 	}
 
-	if check {
+	if len(output) > 0 {
 		if err := s.DeleteFile(body.query); err != nil {
 			return events.APIGatewayProxyResponse{
 				StatusCode:      500,
@@ -215,7 +215,7 @@ func Delete(request events.APIGatewayProxyRequest, t table.Table, s storage.Stor
 			}, fmt.Errorf("incorrect removing query item: %s", err.Error())
 		}
 
-		if err := t.Remove("subscribers", body.query, ""); err != nil {
+		if err := t.Remove("subscribers", body.query); err != nil {
 			return events.APIGatewayProxyResponse{
 				StatusCode:      500,
 				Body:            "error removing subscribers items: " + err.Error(),

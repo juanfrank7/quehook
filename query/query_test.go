@@ -12,21 +12,20 @@ import (
 
 type mockTable struct {
 	getOutput []string
-	getCheck  bool
 	getErr    error
 	addErr    error
 	removeErr error
 }
 
-func (mock *mockTable) Get(table string, items ...string) ([]string, bool, error) {
-	return mock.getOutput, mock.getCheck, mock.getErr
+func (mock *mockTable) Get(table string, key string) ([]string, error) {
+	return mock.getOutput, mock.getErr
 }
 
 func (mock *mockTable) Add(table string, items ...string) error {
 	return mock.addErr
 }
 
-func (mock *mockTable) Remove(table string, item ...string) error {
+func (mock *mockTable) Remove(table string, key string) error {
 	return mock.removeErr
 }
 
@@ -57,92 +56,85 @@ func (mock *mockStorage) DeleteFile(key string) error {
 
 func TestCreate(t *testing.T) {
 	tests := []struct {
-		desc     string
-		req      events.APIGatewayProxyRequest
-		getCheck bool
-		getErr   error
-		addErr   error
-		putErr   error
-		status   int
-		err      string
+		desc   string
+		req    events.APIGatewayProxyRequest
+		getErr error
+		addErr error
+		putErr error
+		status int
+		err    string
 	}{
 		{
 			desc: "table get error",
 			req: events.APIGatewayProxyRequest{
 				QueryStringParameters: map[string]string{
-					"query_name": "test-name",
+					"query_name": "yoda",
 				},
 			},
-			getCheck: false,
-			getErr:   errors.New("mock table get error"),
-			addErr:   nil,
-			putErr:   nil,
-			status:   500,
-			err:      "error getting query table: mock table get error",
+			getErr: errors.New("mock table get error"),
+			addErr: nil,
+			putErr: nil,
+			status: 500,
+			err:    "error getting query table: mock table get error",
 		},
 		{
 			desc: "table add error",
 			req: events.APIGatewayProxyRequest{
 				QueryStringParameters: map[string]string{
-					"query_name": "test-name",
+					"query_name": "dooku",
 				},
 			},
-			getCheck: false,
-			getErr:   nil,
-			addErr:   errors.New("mock table add error"),
-			putErr:   nil,
-			status:   500,
-			err:      "error creating query: mock table add error",
+			getErr: nil,
+			addErr: errors.New("mock table add error"),
+			putErr: nil,
+			status: 500,
+			err:    "error creating query: mock table add error",
 		},
 		{
 			desc: "table add error",
 			req: events.APIGatewayProxyRequest{
 				QueryStringParameters: map[string]string{
-					"query_name": "test-name",
+					"query_name": "jinn",
 				},
 			},
-			getCheck: false,
-			getErr:   nil,
-			addErr:   nil,
-			putErr:   errors.New("mock storage put error"),
-			status:   500,
-			err:      "error putting query file: mock storage put error",
+			getErr: nil,
+			addErr: nil,
+			putErr: errors.New("mock storage put error"),
+			status: 500,
+			err:    "error putting query file: mock storage put error",
 		},
 		{
 			desc: "table exists",
 			req: events.APIGatewayProxyRequest{
 				QueryStringParameters: map[string]string{
-					"query_name": "test-name",
+					"query_name": "kenobi",
 				},
 			},
-			getCheck: true,
-			getErr:   nil,
-			addErr:   nil,
-			putErr:   nil,
-			status:   200,
-			err:      "",
+			getErr: nil,
+			addErr: nil,
+			putErr: nil,
+			status: 200,
+			err:    "",
 		},
 		{
 			desc: "successful invocation",
 			req: events.APIGatewayProxyRequest{
 				QueryStringParameters: map[string]string{
-					"query_name": "test-name",
+					"query_name": "skywalker",
 				},
 			},
-			getCheck: false,
-			getErr:   nil,
-			addErr:   nil,
-			putErr:   nil,
-			status:   200,
-			err:      "",
+			getErr: nil,
+			addErr: nil,
+			putErr: nil,
+			status: 200,
+			err:    "",
 		},
 	}
 
 	for _, test := range tests {
 		tbl := &mockTable{
-			getCheck: test.getCheck,
-			getErr:   test.getErr,
-			addErr:   test.addErr,
+			getErr: test.getErr,
+			addErr: test.addErr,
 		}
 
 		stg := &mockStorage{
@@ -241,7 +233,7 @@ func TestDelete(t *testing.T) {
 	tests := []struct {
 		desc      string
 		req       events.APIGatewayProxyRequest
-		getCheck  bool
+		getOutput []string
 		getErr    error
 		deleteErr error
 		removeErr error
@@ -255,7 +247,7 @@ func TestDelete(t *testing.T) {
 					"QUEHOOK_SECRET": "wrong-test-secret",
 				},
 			},
-			getCheck:  false,
+			getOutput: nil,
 			getErr:    nil,
 			deleteErr: nil,
 			removeErr: nil,
@@ -263,14 +255,14 @@ func TestDelete(t *testing.T) {
 			err:       "incorrect secret received: wrong-test-secret",
 		},
 		{
-			desc: "get file error",
+			desc: "get file get error",
 			req: events.APIGatewayProxyRequest{
 				Headers: map[string]string{
 					"QUEHOOK_SECRET": "test-secret",
 				},
 				Body: `{"query": "test-query"}`,
 			},
-			getCheck:  false,
+			getOutput: nil,
 			getErr:    errors.New("mock get error"),
 			deleteErr: nil,
 			removeErr: nil,
@@ -278,14 +270,14 @@ func TestDelete(t *testing.T) {
 			err:       "incorrect getting query: mock get error",
 		},
 		{
-			desc: "delete file error",
+			desc: "delete file delete error",
 			req: events.APIGatewayProxyRequest{
 				Headers: map[string]string{
 					"QUEHOOK_SECRET": "test-secret",
 				},
 				Body: `{"query": "test-query"}`,
 			},
-			getCheck:  true,
+			getOutput: []string{"test-query"},
 			getErr:    nil,
 			deleteErr: errors.New("mock delete error"),
 			removeErr: nil,
@@ -300,7 +292,7 @@ func TestDelete(t *testing.T) {
 				},
 				Body: `{"query": "test-query"}`,
 			},
-			getCheck:  true,
+			getOutput: []string{"test-query"},
 			getErr:    nil,
 			deleteErr: nil,
 			removeErr: errors.New("mock delete error"),
@@ -315,7 +307,7 @@ func TestDelete(t *testing.T) {
 				},
 				Body: `{"query": "test-query"}`,
 			},
-			getCheck:  true,
+			getOutput: []string{"test-query"},
 			getErr:    nil,
 			deleteErr: nil,
 			removeErr: nil,
@@ -328,8 +320,7 @@ func TestDelete(t *testing.T) {
 		os.Setenv("QUEHOOK_SECRET", "test-secret")
 
 		tbl := &mockTable{
-			getOutput: nil,
-			getCheck:  test.getCheck,
+			getOutput: test.getOutput,
 			getErr:    test.getErr,
 			removeErr: test.removeErr,
 		}
