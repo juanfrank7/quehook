@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"net/http"
 	"os"
 	"strings"
@@ -17,41 +17,39 @@ import (
 	"github.com/forstmeier/quehook/table"
 )
 
+func createResponse(code int, msg string) (events.APIGatewayProxyResponse, error) {
+	resp := events.APIGatewayProxyResponse{
+		StatusCode:      code,
+		Body:            msg,
+		IsBase64Encoded: false,
+	}
+
+	if msg == "success" || msg == "query already exists" {
+		return resp, nil
+	}
+
+	return resp, errors.New(msg)
+}
+
 // Create adds a query to S3 for periodic execution
 func Create(request events.APIGatewayProxyRequest, t table.Table, s storage.Storage) (events.APIGatewayProxyResponse, error) {
 	queryName := request.QueryStringParameters["query_name"]
 
 	output, err := t.Get("queries", queryName)
 	if err != nil {
-		return events.APIGatewayProxyResponse{
-			StatusCode:      500,
-			Body:            "error getting query table: " + err.Error(),
-			IsBase64Encoded: false,
-		}, fmt.Errorf("error getting query table: %s", err.Error())
+		return createResponse(500, "error getting query table: "+err.Error())
 	}
 
 	if len(output) == 0 {
 		if err := t.Add("queries", queryName); err != nil {
-			return events.APIGatewayProxyResponse{
-				StatusCode:      500,
-				Body:            "error creating query: " + err.Error(),
-				IsBase64Encoded: false,
-			}, fmt.Errorf("error creating query: %s", err.Error())
+			return createResponse(500, "error creating query: "+err.Error())
 		}
 
 		if err := s.PutFile(queryName, strings.NewReader(request.Body)); err != nil {
-			return events.APIGatewayProxyResponse{
-				StatusCode:      500,
-				Body:            "error putting query file: " + err.Error(),
-				IsBase64Encoded: false,
-			}, fmt.Errorf("error putting query file: %s", err.Error())
+			return createResponse(500, "error putting query file: "+err.Error())
 		}
 	} else {
-		return events.APIGatewayProxyResponse{
-			StatusCode:      200,
-			Body:            "query already exists",
-			IsBase64Encoded: false,
-		}, nil
+		return createResponse(200, "query already exists")
 	}
 
 	return events.APIGatewayProxyResponse{
@@ -75,22 +73,14 @@ func NewClient() (BQClient, error) {
 func Run(bq BQClient, s storage.Storage, t table.Table) (events.APIGatewayProxyResponse, error) {
 	queries, err := s.GetPaths()
 	if err != nil {
-		return events.APIGatewayProxyResponse{
-			StatusCode:      500,
-			Body:            "error listing query files: " + err.Error(),
-			IsBase64Encoded: false,
-		}, fmt.Errorf("error listing query files: %s", err.Error())
+		return createResponse(500, "error listing query files: "+err.Error())
 	}
 
 	for _, query := range queries {
 		file, err := s.GetFile(query)
 
 		if err != nil {
-			return events.APIGatewayProxyResponse{
-				StatusCode:      500,
-				Body:            "error getting query file: " + err.Error(),
-				IsBase64Encoded: false,
-			}, fmt.Errorf("error getting query file: %s", err.Error())
+			return createResponse(500, "error getting query file: "+err.Error())
 		}
 
 		buf := new(bytes.Buffer)
@@ -101,11 +91,7 @@ func Run(bq BQClient, s storage.Storage, t table.Table) (events.APIGatewayProxyR
 		rows := [][]bigquery.Value{}
 		itr, err := q.Read(context.Background())
 		if err != nil {
-			return events.APIGatewayProxyResponse{
-				StatusCode:      500,
-				Body:            "error reading query: " + err.Error(),
-				IsBase64Encoded: false,
-			}, fmt.Errorf("error reading query: %s", err.Error())
+			return createResponse(500, "error reading query: "+err.Error())
 		}
 
 		for {
@@ -115,11 +101,7 @@ func Run(bq BQClient, s storage.Storage, t table.Table) (events.APIGatewayProxyR
 				break
 			}
 			if err != nil {
-				return events.APIGatewayProxyResponse{
-					StatusCode:      500,
-					Body:            "error iterating query results: " + err.Error(),
-					IsBase64Encoded: false,
-				}, fmt.Errorf("error iterating query results: %s", err.Error())
+				return createResponse(500, "error iterating query results: "+err.Error())
 			}
 
 			rows = append(rows, row)
@@ -127,20 +109,12 @@ func Run(bq BQClient, s storage.Storage, t table.Table) (events.APIGatewayProxyR
 
 		output, err := json.Marshal(rows)
 		if err != nil {
-			return events.APIGatewayProxyResponse{
-				StatusCode:      500,
-				Body:            "error marshalling output: " + err.Error(),
-				IsBase64Encoded: false,
-			}, fmt.Errorf("error marshalling output: %s", err.Error())
+			return createResponse(500, "error marshalling output: "+err.Error())
 		}
 
 		subscribers, err := t.Get("subscribers", query)
 		if err != nil {
-			return events.APIGatewayProxyResponse{
-				StatusCode:      500,
-				Body:            "error getting subscribers: " + err.Error(),
-				IsBase64Encoded: false,
-			}, fmt.Errorf("error getting subscribers: %s", err.Error())
+			return createResponse(500, "error getting subscribers: "+err.Error())
 		}
 
 		client := &http.Client{}
@@ -149,31 +123,19 @@ func Run(bq BQClient, s storage.Storage, t table.Table) (events.APIGatewayProxyR
 			req.Header.Set("Content-Type", "application/json")
 			resp, err := client.Do(req)
 			if err != nil {
-				return events.APIGatewayProxyResponse{
-					StatusCode:      500,
-					Body:            "error posting results: " + err.Error(),
-					IsBase64Encoded: false,
-				}, fmt.Errorf("error posting results: %s", err.Error())
+				return createResponse(500, "error posting results: "+err.Error())
 			}
 			_ = resp // TEMP
 		}
 	}
 
-	return events.APIGatewayProxyResponse{
-		StatusCode:      200,
-		Body:            "success",
-		IsBase64Encoded: false,
-	}, nil
+	return createResponse(200, "success")
 }
 
 // Delete removes a query from S3 - internal use only
 func Delete(request events.APIGatewayProxyRequest, t table.Table, s storage.Storage) (events.APIGatewayProxyResponse, error) {
 	if request.Headers["QUEHOOK_SECRET"] != os.Getenv("QUEHOOK_SECRET") {
-		return events.APIGatewayProxyResponse{
-			StatusCode:      500,
-			Body:            "incorrect secret received: " + request.Headers["QUEHOOK_SECRET"],
-			IsBase64Encoded: false,
-		}, fmt.Errorf("incorrect secret received: %s", request.Headers["QUEHOOK_SECRET"])
+		return createResponse(500, "incorrect secret received: "+request.Headers["QUEHOOK_SECRET"])
 	}
 
 	body := struct {
@@ -181,52 +143,28 @@ func Delete(request events.APIGatewayProxyRequest, t table.Table, s storage.Stor
 	}{}
 
 	if err := json.Unmarshal([]byte(request.Body), &body); err != nil {
-		return events.APIGatewayProxyResponse{
-			StatusCode:      500,
-			Body:            "error parsing request body: " + err.Error(),
-			IsBase64Encoded: false,
-		}, fmt.Errorf("incorrect secret received: %s", err.Error())
+		return createResponse(500, "error parsing request body: "+err.Error())
 	}
 
 	output, err := t.Get("queries", body.query)
 
 	if err != nil {
-		return events.APIGatewayProxyResponse{
-			StatusCode:      500,
-			Body:            "error getting query: " + err.Error(),
-			IsBase64Encoded: false,
-		}, fmt.Errorf("incorrect getting query: %s", err.Error())
+		return createResponse(500, "error getting query: "+err.Error())
 	}
 
 	if len(output) > 0 {
 		if err := s.DeleteFile(body.query); err != nil {
-			return events.APIGatewayProxyResponse{
-				StatusCode:      500,
-				Body:            "error deleting query file: " + err.Error(),
-				IsBase64Encoded: false,
-			}, fmt.Errorf("incorrect deleting query file: %s", err.Error())
+			return createResponse(500, "error deleting query file: "+err.Error())
 		}
 
 		if err := t.Remove("queries", body.query); err != nil {
-			return events.APIGatewayProxyResponse{
-				StatusCode:      500,
-				Body:            "error removing query item: " + err.Error(),
-				IsBase64Encoded: false,
-			}, fmt.Errorf("incorrect removing query item: %s", err.Error())
+			return createResponse(500, "error removing query item: "+err.Error())
 		}
 
 		if err := t.Remove("subscribers", body.query); err != nil {
-			return events.APIGatewayProxyResponse{
-				StatusCode:      500,
-				Body:            "error removing subscribers items: " + err.Error(),
-				IsBase64Encoded: false,
-			}, fmt.Errorf("incorrect removing subscribers items: %s", err.Error())
+			return createResponse(500, "error removing subscribers items: "+err.Error())
 		}
 	}
 
-	return events.APIGatewayProxyResponse{
-		StatusCode:      200,
-		Body:            "success",
-		IsBase64Encoded: false,
-	}, nil
+	return createResponse(200, "success")
 }

@@ -10,6 +10,37 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 )
 
+func Test_createResponse(t *testing.T) {
+	tests := []struct {
+		desc string
+		code int
+		msg  string
+	}{
+		{
+			desc: "error message",
+			code: 500,
+			msg:  "failure",
+		},
+		{
+			desc: "success message",
+			code: 200,
+			msg:  "success",
+		},
+	}
+
+	for _, test := range tests {
+		resp, _ := createResponse(test.code, test.msg)
+
+		if resp.Body != test.msg {
+			t.Errorf("description: %s, body received: %s, expected: %s", test.desc, resp.Body, test.msg)
+		}
+
+		if resp.StatusCode != test.code {
+			t.Errorf("description: %s, status received: %d, expected: %d", test.desc, resp.StatusCode, test.code)
+		}
+	}
+}
+
 type mockTable struct {
 	getOutput []string
 	getErr    error
@@ -267,7 +298,7 @@ func TestDelete(t *testing.T) {
 			deleteErr: nil,
 			removeErr: nil,
 			status:    500,
-			err:       "incorrect getting query: mock get error",
+			err:       "error getting query: mock get error",
 		},
 		{
 			desc: "delete file delete error",
@@ -282,7 +313,7 @@ func TestDelete(t *testing.T) {
 			deleteErr: errors.New("mock delete error"),
 			removeErr: nil,
 			status:    500,
-			err:       "incorrect deleting query file: mock delete error",
+			err:       "error deleting query file: mock delete error",
 		},
 		{
 			desc: "delete item error",
@@ -297,7 +328,7 @@ func TestDelete(t *testing.T) {
 			deleteErr: nil,
 			removeErr: errors.New("mock delete error"),
 			status:    500,
-			err:       "incorrect removing query item: mock delete error",
+			err:       "error removing query item: mock delete error",
 		},
 		{
 			desc: "successful invocation",
