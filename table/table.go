@@ -18,7 +18,7 @@ type dynamoDBClient interface {
 type Table interface {
 	Add(table string, items ...string) error
 	Get(table string, key string) ([]string, error)
-	Remove(table string, item ...string) error
+	Remove(table string, key string) error
 }
 
 // Client implements the Table interface
@@ -119,35 +119,72 @@ func (c *Client) Get(table string, key string) ([]string, error) {
 }
 
 // Remove deletes an item from DynamoDB
-func (c *Client) Remove(table string, items ...string) error {
-	// input := &dynamodb.DeleteItemInput{}
-	//
-	// if table == "subscribers" {
-	// 	input = &dynamodb.DeleteItemInput{
-	// 		Key: map[string]*dynamodb.AttributeValue{
-	// 			"query": {
-	// 				S: aws.String(items[0]),
-	// 			},
-	// 			"subname": {
-	// 				S: aws.String(items[1]),
-	// 			},
-	// 		},
-	// 		TableName: aws.String(table),
-	// 	}
-	// } else if table == "queries" {
-	// 	input = &dynamodb.DeleteItemInput{
-	// 		Key: map[string]*dynamodb.AttributeValue{
-	// 			"query": {
-	// 				S: aws.String(items[0]),
-	// 			},
-	// 		},
-	// 		TableName: aws.String(table),
-	// 	}
-	// }
-	//
-	// _, err := c.dynamodb.DeleteItem(input)
-	// if err != nil {
-	// 	return fmt.Errorf("delete item error: %s", err.Error())
-	// }
+func (c *Client) Remove(table string, key string) error {
+	if table == "subscribers" {
+		requestItems := map[string]*dynamodb.KeysAndAttributes{
+			table: &dynamodb.KeysAndAttributes{
+				ConsistentRead: aws.Bool(true),
+				Keys: []map[string]*dynamodb.AttributeValue{
+					map[string]*dynamodb.AttributeValue{
+						"query_name": {
+							S: aws.String(key),
+						},
+					},
+				},
+			},
+		}
+
+		for {
+			input := &dynamodb.BatchGetItemInput{
+				RequestItems: requestItems,
+			}
+
+			output, err := c.dynamodb.BatchGetItem(input)
+			if err != nil {
+				return fmt.Errorf("get item error: %s", err.Error())
+			}
+
+			for _, result := range output.Responses[table] {
+				composite := result["subscriber_email"].GoString()
+
+				_, err := c.dynamodb.DeleteItem(&dynamodb.DeleteItemInput{
+					TableName: aws.String(table),
+					Key: map[string]*dynamodb.AttributeValue{
+						"query_name": {
+							S: aws.String(key),
+						},
+						"subscriber_email": {
+							S: aws.String(composite),
+						},
+					},
+				})
+				if err != nil {
+					return fmt.Errorf("delete item error: %s", err.Error())
+				}
+
+				if output.UnprocessedKeys == nil {
+					break
+				}
+
+				requestItems = output.UnprocessedKeys
+			}
+
+			break
+		}
+	} else if table == "queries" {
+		_, err := c.dynamodb.DeleteItem(&dynamodb.DeleteItemInput{
+			TableName: aws.String(table),
+			Key: map[string]*dynamodb.AttributeValue{
+				"query_name": {
+					S: aws.String(key),
+				},
+			},
+		})
+		if err != nil {
+			return fmt.Errorf("delete item error: %s", err.Error())
+		}
+
+	}
+
 	return nil
 }

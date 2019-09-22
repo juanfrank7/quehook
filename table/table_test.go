@@ -178,58 +178,100 @@ func TestGet(t *testing.T) {
 }
 
 func TestRemove(t *testing.T) {
-	// tests := []struct {
-	// 	desc             string
-	// 	table            string
-	// 	items            []string
-	// 	deleteItemOutput *dynamodb.DeleteItemOutput // kept for possible method expansion
-	// 	deleteItemError  error
-	// 	err              string
-	// }{
-	// 	{
-	// 		desc:  "delete item error",
-	// 		table: "queries",
-	// 		items: []string{
-	// 			"query",
-	// 		},
-	// 		deleteItemOutput: nil,
-	// 		deleteItemError:  errors.New("mock delete error"),
-	// 		err:              "delete item error: mock delete error",
-	// 	},
-	// 	{
-	// 		desc:  "successful subscribers invocation",
-	// 		table: "subscribers",
-	// 		items: []string{
-	// 			"query",
-	// 			"subname",
-	// 			"target",
-	// 		},
-	// 		deleteItemOutput: nil,
-	// 		deleteItemError:  nil,
-	// 		err:              "",
-	// 	},
-	// 	{
-	// 		desc:  "successful queries invocation",
-	// 		table: "queries",
-	// 		items: []string{
-	// 			"query",
-	// 		},
-	// 		deleteItemOutput: nil,
-	// 		deleteItemError:  nil,
-	// 		err:              "",
-	// 	},
-	// }
-	//
-	// for _, test := range tests {
-	// 	c := &Client{
-	// 		dynamodb: &tableMock{
-	// 			deleteItemOutput: test.deleteItemOutput,
-	// 			deleteItemError:  test.deleteItemError,
-	// 		},
-	// 	}
-	//
-	// 	if err := c.Remove(test.table, test.items...); err != nil && err.Error() != test.err {
-	// 		t.Errorf("description: %s, error received: %s, expected: %s", test.desc, err.Error(), test.err)
-	// 	}
-	// }
+	tests := []struct {
+		desc             string
+		table            string
+		key              string
+		getItemOutput    *dynamodb.BatchGetItemOutput
+		getItemError     error
+		deleteItemOutput *dynamodb.DeleteItemOutput // kept for possible method expansion
+		deleteItemError  error
+		err              string
+	}{
+		{
+			desc:             "delete queries error",
+			table:            "queries",
+			key:              "query",
+			getItemOutput:    nil,
+			getItemError:     nil,
+			deleteItemOutput: nil,
+			deleteItemError:  errors.New("mock delete error"),
+			err:              "delete item error: mock delete error",
+		},
+		{
+			desc:             "delete queries successful invocation",
+			table:            "queries",
+			key:              "query",
+			getItemOutput:    nil,
+			getItemError:     nil,
+			deleteItemOutput: nil,
+			deleteItemError:  nil,
+			err:              "",
+		},
+		{
+			desc:             "delete subscribers get batch error",
+			table:            "subscribers",
+			key:              "query",
+			getItemOutput:    nil,
+			getItemError:     errors.New("mock get error"),
+			deleteItemOutput: nil,
+			deleteItemError:  nil,
+			err:              "get item error: mock get error",
+		},
+		{
+			desc:  "delete subscribers delete error",
+			table: "subscribers",
+			key:   "query",
+			getItemOutput: &dynamodb.BatchGetItemOutput{
+				Responses: map[string][]map[string]*dynamodb.AttributeValue{
+					"subscribers": []map[string]*dynamodb.AttributeValue{
+						map[string]*dynamodb.AttributeValue{
+							"subscriber_email": &dynamodb.AttributeValue{
+								S: aws.String("anakin@skywalker.com"),
+							},
+						},
+					},
+				},
+			},
+			getItemError:     nil,
+			deleteItemOutput: nil,
+			deleteItemError:  errors.New("mock delete error"),
+			err:              "delete item error: mock delete error",
+		},
+		{
+			desc:  "delete subscribers successful invocation",
+			table: "subscribers",
+			key:   "query",
+			getItemOutput: &dynamodb.BatchGetItemOutput{
+				Responses: map[string][]map[string]*dynamodb.AttributeValue{
+					"subscribers": []map[string]*dynamodb.AttributeValue{
+						map[string]*dynamodb.AttributeValue{
+							"subscriber_email": &dynamodb.AttributeValue{
+								S: aws.String("anakin@skywalker.com"),
+							},
+						},
+					},
+				},
+			},
+			getItemError:     nil,
+			deleteItemOutput: nil,
+			deleteItemError:  nil,
+			err:              "",
+		},
+	}
+
+	for _, test := range tests {
+		c := &Client{
+			dynamodb: &tableMock{
+				getItemOutput:    test.getItemOutput,
+				getItemError:     test.getItemError,
+				deleteItemOutput: test.deleteItemOutput,
+				deleteItemError:  test.deleteItemError,
+			},
+		}
+
+		if err := c.Remove(test.table, test.key); err != nil && err.Error() != test.err {
+			t.Errorf("description: %s, error received: %s, expected: %s", test.desc, err.Error(), test.err)
+		}
+	}
 }
