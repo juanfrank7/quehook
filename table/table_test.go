@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	// "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 )
 
@@ -92,96 +92,89 @@ func TestAdd(t *testing.T) {
 }
 
 func TestGet(t *testing.T) {
-	// tests := []struct {
-	// 	desc          string
-	// 	table         string
-	// 	items         []string
-	// 	getItemOutput *dynamodb.BatchGetItemOutput
-	// 	getItemError  error
-	// 	check         bool
-	// 	err           string
-	// }{
-	// 	{
-	// 		desc:  "get item error",
-	// 		table: "queries",
-	// 		items: []string{
-	// 			"query",
-	// 		},
-	// 		getItemOutput: nil,
-	// 		getItemError:  errors.New("mock get error"),
-	// 		check:         false,
-	// 		err:           "get item error: mock get error",
-	// 	},
-	// 	{
-	// 		desc:  "successful subscribers invocation",
-	// 		table: "subscribers",
-	// 		items: []string{
-	// 			"query",
-	// 			"subname",
-	// 			"target",
-	// 		},
-	// 		getItemOutput: &dynamodb.BatchGetItemOutput{
-	// 			Responses: map[string][]map[string]*dynamodb.AttributeValue{
-	// 				"subscribers": []map[string]*dynamodb.AttributeValue{
-	// 					map[string]*dynamodb.AttributeValue{
-	// 						"query": {
-	// 							S: aws.String("test-query"),
-	// 						},
-	// 						"target": {
-	// 							S: aws.String("test-target"),
-	// 						},
-	// 					},
-	// 				},
-	// 			},
-	// 		},
-	// 		getItemError: nil,
-	// 		check:        true,
-	// 		err:          "",
-	// 	},
-	// 	{
-	// 		desc:  "successful queries invocation",
-	// 		table: "queries",
-	// 		items: []string{
-	// 			"query",
-	// 		},
-	// 		getItemOutput: &dynamodb.BatchGetItemOutput{
-	// 			Responses: map[string][]map[string]*dynamodb.AttributeValue{
-	// 				"subscribers": []map[string]*dynamodb.AttributeValue{
-	// 					map[string]*dynamodb.AttributeValue{
-	// 						"query": {
-	// 							S: aws.String("test-query"),
-	// 						},
-	// 						"target": {
-	// 							S: aws.String("test-target"),
-	// 						},
-	// 					},
-	// 				},
-	// 			},
-	// 		},
-	// 		getItemError: nil,
-	// 		check:        true,
-	// 		err:          "",
-	// 	},
-	// }
-	//
-	// for _, test := range tests {
-	// 	c := &Client{
-	// 		dynamodb: &tableMock{
-	// 			getItemOutput: test.getItemOutput,
-	// 			getItemError:  test.getItemError,
-	// 		},
-	// 	}
-	//
-	// 	_, check, err := c.Get(test.table, test.items...)
-	//
-	// 	if check != test.check {
-	// 		t.Errorf("description: %s, check received: %t, expected: %t", test.desc, check, test.check)
-	// 	}
-	//
-	// 	if err != nil && err.Error() != test.err {
-	// 		t.Errorf("description: %s, error received: %s, expected: %s", test.desc, err.Error(), test.err)
-	// 	}
-	// }
+	tests := []struct {
+		desc          string
+		table         string
+		key           string
+		getItemOutput *dynamodb.BatchGetItemOutput
+		getItemError  error
+		output        []string
+		err           string
+	}{
+		{
+			desc:          "get item error",
+			table:         "queries",
+			key:           "query",
+			getItemOutput: nil,
+			getItemError:  errors.New("mock get error"),
+			output:        nil,
+			err:           "get item error: mock get error",
+		},
+		{
+			desc:  "successful subscribers invocation",
+			table: "subscribers",
+			key:   "query",
+			getItemOutput: &dynamodb.BatchGetItemOutput{
+				Responses: map[string][]map[string]*dynamodb.AttributeValue{
+					"subscribers": []map[string]*dynamodb.AttributeValue{
+						map[string]*dynamodb.AttributeValue{
+							"query_name": {
+								S: aws.String("test-query"),
+							},
+							"subscriber_target": {
+								S: aws.String("test-target"),
+							},
+						},
+					},
+				},
+			},
+			getItemError: nil,
+			output: []string{
+				"test-query",
+			},
+			err: "",
+		},
+		{
+			desc:  "successful queries invocation",
+			table: "queries",
+			key:   "key",
+			getItemOutput: &dynamodb.BatchGetItemOutput{
+				Responses: map[string][]map[string]*dynamodb.AttributeValue{
+					"queries": []map[string]*dynamodb.AttributeValue{
+						map[string]*dynamodb.AttributeValue{
+							"query_name": {
+								S: aws.String("test-query"),
+							},
+						},
+					},
+				},
+			},
+			getItemError: nil,
+			output: []string{
+				"test-query",
+			},
+			err: "",
+		},
+	}
+
+	for _, test := range tests {
+		c := &Client{
+			dynamodb: &tableMock{
+				getItemOutput: test.getItemOutput,
+				getItemError:  test.getItemError,
+			},
+		}
+
+		output, err := c.Get(test.table, test.key)
+
+		if len(output) != len(test.output) {
+			t.Errorf("description: %s, output received: %d, expected: %d", test.desc, len(output), len(test.output))
+		}
+
+		if err != nil && err.Error() != test.err {
+			t.Errorf("description: %s, error received: %s, expected: %s", test.desc, err.Error(), test.err)
+		}
+	}
 }
 
 func TestRemove(t *testing.T) {

@@ -17,7 +17,7 @@ type dynamoDBClient interface {
 // Table provides helper methods for persisting/retrieving/deleting items
 type Table interface {
 	Add(table string, items ...string) error
-	Get(table string, items ...string) ([]string, bool, error)
+	Get(table string, key string) ([]string, error)
 	Remove(table string, item ...string) error
 }
 
@@ -71,32 +71,51 @@ func (c *Client) Add(table string, items ...string) error {
 }
 
 // Get retrieves an item from DynamoDB
-func (c *Client) Get(table string, items ...string) ([]string, bool, error) {
-	// input := &dynamodb.BatchGetItemInput{
-	// 	RequestItems: map[string]*dynamodb.KeysAndAttributes{
-	// 		table: &dynamodb.KeysAndAttributes{
-	// 			Keys: []map[string]*dynamodb.AttributeValue{
-	// 				map[string]*dynamodb.AttributeValue{
-	// 					"query": {
-	// 						S: aws.String(items[0]),
-	// 					},
-	// 				},
-	// 			},
-	// 		},
-	// 	},
-	// }
-	//
-	// output, err := c.dynamodb.BatchGetItem(input)
-	// if err != nil {
-	// 	return nil, false, fmt.Errorf("get item error: %s", err.Error())
-	// }
-	//
-	targets := []string{}
-	// for _, result := range output.Responses[table] {
-	// 	targets = append(targets, result["target"].GoString())
-	// }
-	//
-	return targets, true, nil
+func (c *Client) Get(table string, key string) ([]string, error) {
+	results := []string{}
+
+	requestItems := map[string]*dynamodb.KeysAndAttributes{
+		table: &dynamodb.KeysAndAttributes{
+			ConsistentRead: aws.Bool(true),
+			Keys: []map[string]*dynamodb.AttributeValue{
+				map[string]*dynamodb.AttributeValue{
+					"query_name": {
+						S: aws.String(key),
+					},
+				},
+			},
+		},
+	}
+
+	for {
+		input := &dynamodb.BatchGetItemInput{
+			RequestItems: requestItems,
+		}
+
+		output, err := c.dynamodb.BatchGetItem(input)
+		if err != nil {
+			return nil, fmt.Errorf("get item error: %s", err.Error())
+		}
+
+		attributeName := ""
+		if table == "subscribers" {
+			attributeName = "subscriber_target"
+		} else if table == "queries" {
+			attributeName = "query_name"
+		}
+
+		for _, result := range output.Responses[table] {
+			results = append(results, result[attributeName].GoString())
+		}
+
+		if output.UnprocessedKeys == nil {
+			break
+		}
+
+		requestItems = output.UnprocessedKeys
+	}
+
+	return results, nil
 }
 
 // Remove deletes an item from DynamoDB
