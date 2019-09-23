@@ -87,13 +87,14 @@ func (mock *mockStorage) DeleteFile(key string) error {
 
 func TestCreate(t *testing.T) {
 	tests := []struct {
-		desc   string
-		req    events.APIGatewayProxyRequest
-		getErr error
-		addErr error
-		putErr error
-		status int
-		err    string
+		desc      string
+		req       events.APIGatewayProxyRequest
+		getOutput []string
+		getErr    error
+		addErr    error
+		putErr    error
+		status    int
+		err       string
 	}{
 		{
 			desc: "table get error",
@@ -102,11 +103,12 @@ func TestCreate(t *testing.T) {
 					"query_name": "yoda",
 				},
 			},
-			getErr: errors.New("mock table get error"),
-			addErr: nil,
-			putErr: nil,
-			status: 500,
-			err:    "error getting query table: mock table get error",
+			getOutput: nil,
+			getErr:    errors.New("mock table get error"),
+			addErr:    nil,
+			putErr:    nil,
+			status:    500,
+			err:       "error getting query table: mock table get error",
 		},
 		{
 			desc: "table add error",
@@ -115,14 +117,15 @@ func TestCreate(t *testing.T) {
 					"query_name": "dooku",
 				},
 			},
-			getErr: nil,
-			addErr: errors.New("mock table add error"),
-			putErr: nil,
-			status: 500,
-			err:    "error creating query: mock table add error",
+			getOutput: []string{},
+			getErr:    nil,
+			addErr:    errors.New("mock table add error"),
+			putErr:    nil,
+			status:    500,
+			err:       "error creating query: mock table add error",
 		},
 		{
-			desc: "table add error",
+			desc: "table add storage error",
 			req: events.APIGatewayProxyRequest{
 				QueryStringParameters: map[string]string{
 					"query_name": "jinn",
@@ -141,11 +144,12 @@ func TestCreate(t *testing.T) {
 					"query_name": "kenobi",
 				},
 			},
-			getErr: nil,
-			addErr: nil,
-			putErr: nil,
-			status: 200,
-			err:    "",
+			getOutput: []string{"ben"},
+			getErr:    nil,
+			addErr:    nil,
+			putErr:    nil,
+			status:    200,
+			err:       "",
 		},
 		{
 			desc: "successful invocation",

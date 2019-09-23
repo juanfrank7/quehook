@@ -52,11 +52,7 @@ func Create(request events.APIGatewayProxyRequest, t table.Table, s storage.Stor
 		return createResponse(200, "query already exists")
 	}
 
-	return events.APIGatewayProxyResponse{
-		StatusCode:      200,
-		Body:            "success",
-		IsBase64Encoded: false,
-	}, nil
+	return createResponse(200, "success")
 }
 
 // BQClient wraps BigQuery methods and functionality
