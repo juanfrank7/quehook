@@ -8,6 +8,13 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 )
 
+func TestNew(t *testing.T) {
+	tbl := New()
+	if tbl == nil {
+		t.Errorf("description: error creating table client, received: %+v", tbl)
+	}
+}
+
 type tableMock struct {
 	putItemOutput    *dynamodb.PutItemOutput
 	putItemError     error
