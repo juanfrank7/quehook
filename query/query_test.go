@@ -184,6 +184,14 @@ func TestCreate(t *testing.T) {
 	}
 }
 
+func TestNewClient(t *testing.T) {
+	_, err := NewClient()
+
+	if err != nil && err.Error() != "bigquery: dialing: google: could not find default credentials. See https://developers.google.com/accounts/docs/application-default-credentials for more information." {
+		t.Errorf("description: error creating new client: %s", err.Error())
+	}
+}
+
 type mockBQ struct {
 	bqOutput *bigquery.Query
 }
