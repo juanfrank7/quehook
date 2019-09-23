@@ -242,6 +242,36 @@ func TestRun(t *testing.T) {
 			status:      500,
 			err:         "mock query run error",
 		},
+		{
+			desc:        "get subscribers error",
+			pathsOutput: []string{"test-query"},
+			pathsErr:    nil,
+			getOutput:   strings.NewReader("test-reader"),
+			getErr:      nil,
+			rowsOutput: &[][]bigquery.Value{
+				[]bigquery.Value{},
+			},
+			rowsErr:   errors.New("mock get subscriber error"),
+			subOutput: nil,
+			subErr:    nil,
+			status:    500,
+			err:       "mock get subscriber error",
+		},
+		{
+			desc:        "successful invocation",
+			pathsOutput: []string{"test-query"},
+			pathsErr:    nil,
+			getOutput:   strings.NewReader("test-reader"),
+			getErr:      nil,
+			rowsOutput: &[][]bigquery.Value{
+				[]bigquery.Value{},
+			},
+			rowsErr:   nil,
+			subOutput: []string{"https://forstmeier.github.com"},
+			subErr:    nil,
+			status:    200,
+			err:       "",
+		},
 	}
 
 	for _, test := range tests {
