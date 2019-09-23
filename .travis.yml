@@ -12,8 +12,10 @@ script:
   - if [ -n "$(gofmt -l .)" ]; then echo "gofmt failed" ; exit 1 ; else echo "gofmt succeeded" ; fi
   - golint -set_exit_status
   - go build ./...
-  - go test -v -race github.com/forstmeier/quehook/handlers -coverprofile=handlers.coverprofile
+  - go test -v -race github.com/forstmeier/quehook/query -coverprofile=query.coverprofile
   - go test -v -race github.com/forstmeier/quehook/storage -coverprofile=storage.coverprofile
+  - go test -v -race github.com/forstmeier/quehook/subscription -coverprofile=subscription.coverprofile
+  - go test -v -race github.com/forstmeier/quehook/table -coverprofile=table.coverprofile
   - gover
   - "$GOPATH/bin/goveralls -coverprofile=gover.coverprofile -service=travis-ci"
   - rm *.coverprofile
