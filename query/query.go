@@ -55,25 +55,43 @@ func Create(request events.APIGatewayProxyRequest, t table.Table, s storage.Stor
 	return createResponse(200, "success")
 }
 
-// BQClient wraps BigQuery methods and functionality
-type BQClient interface {
-	Query(query string) *bigquery.Query
-}
+var query = func(q string, rows *[][]bigquery.Value) error {
+	client, err := bigquery.NewClient(context.Background(), "quehook")
+	if err != nil {
+		return errors.New("error creating bigquery client: " + err.Error())
+	}
 
-// NewClient creates a new BigQuery client implementation
-func NewClient() (BQClient, error) {
-	return bigquery.NewClient(context.Background(), "quehook")
+	qry := client.Query(q)
+	itr, err := qry.Read(context.Background())
+	if err != nil {
+		return errors.New("error reading query: " + err.Error())
+	}
+
+	for {
+		var row []bigquery.Value
+		err := itr.Next(&row)
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return errors.New("error iterating query results: " + err.Error())
+		}
+
+		*rows = append(*rows, row)
+	}
+
+	return nil
 }
 
 // Run executes all stored queries and returns results to subscribers
-func Run(bq BQClient, s storage.Storage, t table.Table) (events.APIGatewayProxyResponse, error) {
+func Run(s storage.Storage, t table.Table) (events.APIGatewayProxyResponse, error) {
 	queries, err := s.GetPaths()
 	if err != nil {
 		return createResponse(500, "error listing query files: "+err.Error())
 	}
 
-	for _, query := range queries {
-		file, err := s.GetFile(query)
+	for _, q := range queries {
+		file, err := s.GetFile(q)
 
 		if err != nil {
 			return createResponse(500, "error getting query file: "+err.Error())
@@ -82,25 +100,9 @@ func Run(bq BQClient, s storage.Storage, t table.Table) (events.APIGatewayProxyR
 		buf := new(bytes.Buffer)
 		buf.ReadFrom(file)
 
-		q := bq.Query(buf.String())
-
 		rows := [][]bigquery.Value{}
-		itr, err := q.Read(context.Background())
-		if err != nil {
-			return createResponse(500, "error reading query: "+err.Error())
-		}
-
-		for {
-			var row []bigquery.Value
-			err := itr.Next(&row)
-			if err == iterator.Done {
-				break
-			}
-			if err != nil {
-				return createResponse(500, "error iterating query results: "+err.Error())
-			}
-
-			rows = append(rows, row)
+		if err := query(buf.String(), &rows); err != nil {
+			return createResponse(500, err.Error())
 		}
 
 		output, err := json.Marshal(rows)
@@ -108,7 +110,7 @@ func Run(bq BQClient, s storage.Storage, t table.Table) (events.APIGatewayProxyR
 			return createResponse(500, "error marshalling output: "+err.Error())
 		}
 
-		subscribers, err := t.Get("subscribers", query)
+		subscribers, err := t.Get("subscribers", q)
 		if err != nil {
 			return createResponse(500, "error getting subscribers: "+err.Error())
 		}

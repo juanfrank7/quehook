@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"strings"
 	"testing"
 
 	"cloud.google.com/go/bigquery"
@@ -188,22 +189,6 @@ func TestCreate(t *testing.T) {
 	}
 }
 
-func TestNewClient(t *testing.T) {
-	_, err := NewClient()
-
-	if err != nil && err.Error() != "bigquery: dialing: google: could not find default credentials. See https://developers.google.com/accounts/docs/application-default-credentials for more information." {
-		t.Errorf("description: error creating new client: %s", err.Error())
-	}
-}
-
-type mockBQ struct {
-	bqOutput *bigquery.Query
-}
-
-func (mock *mockBQ) Query(query string) *bigquery.Query {
-	return mock.bqOutput
-}
-
 func TestRun(t *testing.T) {
 	tests := []struct {
 		desc        string
@@ -211,7 +196,8 @@ func TestRun(t *testing.T) {
 		pathsErr    error
 		getOutput   io.Reader
 		getErr      error
-		bqOutput    *bigquery.Query
+		rowsOutput  *[][]bigquery.Value
+		rowsErr     error
 		subOutput   []string
 		subErr      error
 		status      int
@@ -223,7 +209,8 @@ func TestRun(t *testing.T) {
 			pathsErr:    errors.New("mock paths error"),
 			getOutput:   nil,
 			getErr:      nil,
-			bqOutput:    nil,
+			rowsOutput:  nil,
+			rowsErr:     nil,
 			subOutput:   nil,
 			subErr:      nil,
 			status:      500,
@@ -235,11 +222,25 @@ func TestRun(t *testing.T) {
 			pathsErr:    nil,
 			getOutput:   nil,
 			getErr:      errors.New("mock files error"),
-			bqOutput:    nil,
+			rowsOutput:  nil,
+			rowsErr:     nil,
 			subOutput:   nil,
 			subErr:      nil,
 			status:      500,
 			err:         "error getting query file: mock files error",
+		},
+		{
+			desc:        "error running query",
+			pathsOutput: []string{"test-query"},
+			pathsErr:    nil,
+			getOutput:   strings.NewReader("test-reader"),
+			getErr:      nil,
+			rowsOutput:  &[][]bigquery.Value{},
+			rowsErr:     errors.New("mock query run error"),
+			subOutput:   nil,
+			subErr:      nil,
+			status:      500,
+			err:         "mock query run error",
 		},
 	}
 
@@ -251,8 +252,9 @@ func TestRun(t *testing.T) {
 			getErr:      test.getErr,
 		}
 
-		bq := &mockBQ{
-			bqOutput: test.bqOutput,
+		query = func(q string, rows *[][]bigquery.Value) error {
+			*rows = append(*rows, *test.rowsOutput...)
+			return test.rowsErr
 		}
 
 		tbl := &mockTable{
@@ -260,7 +262,7 @@ func TestRun(t *testing.T) {
 			getErr:    test.subErr,
 		}
 
-		resp, err := Run(bq, stg, tbl)
+		resp, err := Run(stg, tbl)
 
 		if err != nil && err.Error() != test.err {
 			t.Errorf("description: %s, error received: %s, expected: %s", test.desc, err.Error(), test.err)
