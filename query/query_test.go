@@ -169,8 +169,9 @@ func TestCreate(t *testing.T) {
 
 	for _, test := range tests {
 		tbl := &mockTable{
-			getErr: test.getErr,
-			addErr: test.addErr,
+			getOutput: test.getOutput,
+			getErr:    test.getErr,
+			addErr:    test.addErr,
 		}
 
 		stg := &mockStorage{
@@ -251,11 +252,11 @@ func TestRun(t *testing.T) {
 			rowsOutput: &[][]bigquery.Value{
 				[]bigquery.Value{},
 			},
-			rowsErr:   errors.New("mock get subscriber error"),
+			rowsErr:   nil,
 			subOutput: nil,
-			subErr:    nil,
+			subErr:    errors.New("mock get subscriber error"),
 			status:    500,
-			err:       "mock get subscriber error",
+			err:       "error getting subscribers: mock get subscriber error",
 		},
 		{
 			desc:        "successful invocation",
