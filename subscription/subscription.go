@@ -42,7 +42,7 @@ func Subscribe(request events.APIGatewayProxyRequest, t table.Table) (events.API
 		return createResponse(400, "error parsing url: "+err.Error())
 	}
 
-	output, err := t.Get("queries", s.QueryName)
+	output, err := t.Get("queries", s.QueryName, "query_name")
 	if err != nil {
 		return createResponse(500, "error getting query: "+err.Error())
 	} else if len(output) == 0 {
@@ -57,13 +57,22 @@ func Subscribe(request events.APIGatewayProxyRequest, t table.Table) (events.API
 }
 
 // Unsubscribe removes a subscriber from webhook query events
-// func Unsubscribe(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-// outline:
-// [ ] parse query name from request
-// [ ] check if name exists in dynamodb subscription table
-// - [ ] true:
-// - - [ ] delete item from dynamodb subscription table
-// - [ ] false:
-// - - [ ] return error
-// [ ] return success
-// }
+func Unsubscribe(request events.APIGatewayProxyRequest, t table.Table) (events.APIGatewayProxyResponse, error) {
+	s := &sub{}
+	if err := json.Unmarshal([]byte(request.Body), &s); err != nil {
+		return createResponse(400, "error parsing request: "+err.Error())
+	}
+
+	output, err := t.Get("subscribers", s.QueryName, "subscriber_email")
+	if err != nil {
+		return createResponse(500, "error getting query: "+err.Error())
+	}
+
+	if len(output) > 0 {
+		if err := t.Remove("subscribers", s.QueryName, s.SubscriberEmail); err != nil {
+			return createResponse(500, "error removing subscriber: "+err.Error())
+		}
+	}
+
+	return createResponse(200, "success")
+}

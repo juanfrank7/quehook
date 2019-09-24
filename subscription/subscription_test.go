@@ -45,7 +45,7 @@ type mockTable struct {
 	removeErr error
 }
 
-func (mock *mockTable) Get(table string, key string) ([]string, error) {
+func (mock *mockTable) Get(table string, key, attribute string) ([]string, error) {
 	return mock.getOutput, mock.getErr
 }
 
@@ -53,7 +53,7 @@ func (mock *mockTable) Add(table string, items ...string) error {
 	return mock.addErr
 }
 
-func (mock *mockTable) Remove(table string, key string) error {
+func (mock *mockTable) Remove(table string, key, attribute string) error {
 	return mock.removeErr
 }
 
@@ -136,7 +136,6 @@ func TestSubscribe(t *testing.T) {
 	}
 
 	for _, test := range tests {
-
 		tbl := &mockTable{
 			getOutput: test.getOutput,
 			getErr:    test.getErr,
@@ -152,10 +151,81 @@ func TestSubscribe(t *testing.T) {
 		if resp.StatusCode != test.code {
 			t.Errorf("description: %s, status received: %d, expected: %d", test.desc, resp.StatusCode, test.code)
 		}
-
 	}
 }
 
 func TestUnsubscribe(t *testing.T) {
+	tests := []struct {
+		desc      string
+		req       events.APIGatewayProxyRequest
+		getOutput []string
+		getErr    error
+		removeErr error
+		code      int
+		err       string
+	}{
+		{
+			desc: "error parsing request",
+			req: events.APIGatewayProxyRequest{
+				Body: `["incorrect-input"]`,
+			},
 
+			getOutput: nil,
+			getErr:    errors.New("mock get error"),
+			removeErr: nil,
+			code:      400,
+			err:       "error parsing request: json: cannot unmarshal array into Go value of type subscription.sub",
+		},
+		{
+			desc: "error getting subscriber",
+			req: events.APIGatewayProxyRequest{
+				Body: `{"query_name":"droids"}`,
+			},
+			getOutput: []string{""},
+			getErr:    errors.New("mock get error"),
+			removeErr: nil,
+			code:      500,
+			err:       "error getting query: mock get error",
+		},
+		{
+			desc: "error removing subscriber",
+			req: events.APIGatewayProxyRequest{
+				Body: `{"query_name":"droids"}`,
+			},
+			getOutput: []string{"not-them"},
+			getErr:    nil,
+			removeErr: errors.New("mock remove error"),
+			code:      500,
+			err:       "error removing subscriber: mock remove error",
+		},
+		{
+			desc: "successful invocation",
+			req: events.APIGatewayProxyRequest{
+				Body: `{"query_name":"droids"}`,
+			},
+			getOutput: []string{"move along"},
+			getErr:    nil,
+			removeErr: nil,
+			code:      200,
+			err:       "",
+		},
+	}
+
+	for _, test := range tests {
+		tbl := &mockTable{
+			getOutput: test.getOutput,
+			getErr:    test.getErr,
+			removeErr: test.removeErr,
+		}
+
+		resp, err := Unsubscribe(test.req, tbl)
+
+		if err != nil && err.Error() != test.err {
+			t.Errorf("description: %s, error received: %s, expected: %s", test.desc, err.Error(), test.err)
+		}
+
+		if resp.StatusCode != test.code {
+			t.Errorf("description: %s, status received: %d, expected: %d", test.desc, resp.StatusCode, test.code)
+		}
+	}
 }
