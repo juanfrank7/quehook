@@ -49,7 +49,7 @@ type mockTable struct {
 	removeErr error
 }
 
-func (mock *mockTable) Get(table string, key string) ([]string, error) {
+func (mock *mockTable) Get(table string, key, attribute string) ([]string, error) {
 	return mock.getOutput, mock.getErr
 }
 

@@ -35,7 +35,7 @@ func createResponse(code int, msg string) (events.APIGatewayProxyResponse, error
 func Create(request events.APIGatewayProxyRequest, t table.Table, s storage.Storage) (events.APIGatewayProxyResponse, error) {
 	queryName := request.QueryStringParameters["query_name"]
 
-	output, err := t.Get("queries", queryName)
+	output, err := t.Get("queries", queryName, "query_name")
 	if err != nil {
 		return createResponse(500, "error getting query table: "+err.Error())
 	}
@@ -110,7 +110,7 @@ func Run(s storage.Storage, t table.Table) (events.APIGatewayProxyResponse, erro
 			return createResponse(500, "error marshalling output: "+err.Error())
 		}
 
-		subscribers, err := t.Get("subscribers", q)
+		subscribers, err := t.Get("subscribers", q, "subscriber_target")
 		if err != nil {
 			return createResponse(500, "error getting subscribers: "+err.Error())
 		}
@@ -144,8 +144,7 @@ func Delete(request events.APIGatewayProxyRequest, t table.Table, s storage.Stor
 		return createResponse(500, "error parsing request body: "+err.Error())
 	}
 
-	output, err := t.Get("queries", body.query)
-
+	output, err := t.Get("queries", body.query, "query_name")
 	if err != nil {
 		return createResponse(500, "error getting query: "+err.Error())
 	}
