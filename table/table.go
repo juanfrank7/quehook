@@ -18,7 +18,7 @@ type dynamoDBClient interface {
 type Table interface {
 	Add(table string, items ...string) error
 	Get(table string, key, attribute string) ([]string, error)
-	Remove(table string, key string) error
+	Remove(table string, key, attribute string) error
 }
 
 // Client implements the Table interface
@@ -112,7 +112,7 @@ func (c *Client) Get(table string, key, attribute string) ([]string, error) {
 }
 
 // Remove deletes an item from DynamoDB
-func (c *Client) Remove(table string, key string) error {
+func (c *Client) Remove(table string, key, attribute string) error {
 	if table == "subscribers" {
 		requestItems := map[string]*dynamodb.KeysAndAttributes{
 			table: &dynamodb.KeysAndAttributes{
@@ -125,6 +125,25 @@ func (c *Client) Remove(table string, key string) error {
 					},
 				},
 			},
+		}
+
+		if attribute != "" {
+			_, err := c.dynamodb.DeleteItem(&dynamodb.DeleteItemInput{
+				TableName: aws.String(table),
+				Key: map[string]*dynamodb.AttributeValue{
+					"query_name": {
+						S: aws.String(key),
+					},
+					"subscriber_email": {
+						S: aws.String(attribute),
+					},
+				},
+			})
+			if err != nil {
+				return fmt.Errorf("delete item error: %s", err.Error())
+			}
+
+			return nil
 		}
 
 		for {

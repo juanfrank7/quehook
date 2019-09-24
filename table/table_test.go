@@ -193,6 +193,7 @@ func TestRemove(t *testing.T) {
 		desc             string
 		table            string
 		key              string
+		attribute        string
 		getItemOutput    *dynamodb.BatchGetItemOutput
 		getItemError     error
 		deleteItemOutput *dynamodb.DeleteItemOutput // kept for possible method expansion
@@ -203,6 +204,7 @@ func TestRemove(t *testing.T) {
 			desc:             "delete queries error",
 			table:            "queries",
 			key:              "query",
+			attribute:        "",
 			getItemOutput:    nil,
 			getItemError:     nil,
 			deleteItemOutput: nil,
@@ -213,6 +215,7 @@ func TestRemove(t *testing.T) {
 			desc:             "delete queries successful invocation",
 			table:            "queries",
 			key:              "query",
+			attribute:        "",
 			getItemOutput:    nil,
 			getItemError:     nil,
 			deleteItemOutput: nil,
@@ -223,6 +226,7 @@ func TestRemove(t *testing.T) {
 			desc:             "delete subscribers get batch error",
 			table:            "subscribers",
 			key:              "query",
+			attribute:        "",
 			getItemOutput:    nil,
 			getItemError:     errors.New("mock get error"),
 			deleteItemOutput: nil,
@@ -230,9 +234,10 @@ func TestRemove(t *testing.T) {
 			err:              "get item error: mock get error",
 		},
 		{
-			desc:  "delete subscribers delete error",
-			table: "subscribers",
-			key:   "query",
+			desc:      "delete subscribers delete error",
+			table:     "subscribers",
+			key:       "query",
+			attribute: "",
 			getItemOutput: &dynamodb.BatchGetItemOutput{
 				Responses: map[string][]map[string]*dynamodb.AttributeValue{
 					"subscribers": []map[string]*dynamodb.AttributeValue{
@@ -250,9 +255,10 @@ func TestRemove(t *testing.T) {
 			err:              "delete item error: mock delete error",
 		},
 		{
-			desc:  "delete subscribers successful invocation",
-			table: "subscribers",
-			key:   "query",
+			desc:      "delete subscribers successful invocation",
+			table:     "subscribers",
+			key:       "query",
+			attribute: "",
 			getItemOutput: &dynamodb.BatchGetItemOutput{
 				Responses: map[string][]map[string]*dynamodb.AttributeValue{
 					"subscribers": []map[string]*dynamodb.AttributeValue{
@@ -281,7 +287,7 @@ func TestRemove(t *testing.T) {
 			},
 		}
 
-		if err := c.Remove(test.table, test.key); err != nil && err.Error() != test.err {
+		if err := c.Remove(test.table, test.key, test.attribute); err != nil && err.Error() != test.err {
 			t.Errorf("description: %s, error received: %s, expected: %s", test.desc, err.Error(), test.err)
 		}
 	}
