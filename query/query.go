@@ -154,11 +154,11 @@ func Delete(request events.APIGatewayProxyRequest, t table.Table, s storage.Stor
 			return createResponse(500, "error deleting query file: "+err.Error())
 		}
 
-		if err := t.Remove("queries", body.query); err != nil {
+		if err := t.Remove("queries", body.query, ""); err != nil {
 			return createResponse(500, "error removing query item: "+err.Error())
 		}
 
-		if err := t.Remove("subscribers", body.query); err != nil {
+		if err := t.Remove("subscribers", body.query, ""); err != nil {
 			return createResponse(500, "error removing subscribers items: "+err.Error())
 		}
 	}

@@ -57,7 +57,7 @@ func (mock *mockTable) Add(table string, items ...string) error {
 	return mock.addErr
 }
 
-func (mock *mockTable) Remove(table string, key string) error {
+func (mock *mockTable) Remove(table string, key, attribute string) error {
 	return mock.removeErr
 }
 
