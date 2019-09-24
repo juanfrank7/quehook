@@ -103,6 +103,7 @@ func TestGet(t *testing.T) {
 		desc          string
 		table         string
 		key           string
+		attribute     string
 		getItemOutput *dynamodb.BatchGetItemOutput
 		getItemError  error
 		output        []string
@@ -112,15 +113,17 @@ func TestGet(t *testing.T) {
 			desc:          "get item error",
 			table:         "queries",
 			key:           "query",
+			attribute:     "",
 			getItemOutput: nil,
 			getItemError:  errors.New("mock get error"),
 			output:        nil,
 			err:           "get item error: mock get error",
 		},
 		{
-			desc:  "successful subscribers invocation",
-			table: "subscribers",
-			key:   "query",
+			desc:      "successful subscribers invocation",
+			table:     "subscribers",
+			key:       "query",
+			attribute: "subscriber_target",
 			getItemOutput: &dynamodb.BatchGetItemOutput{
 				Responses: map[string][]map[string]*dynamodb.AttributeValue{
 					"subscribers": []map[string]*dynamodb.AttributeValue{
@@ -142,9 +145,10 @@ func TestGet(t *testing.T) {
 			err: "",
 		},
 		{
-			desc:  "successful queries invocation",
-			table: "queries",
-			key:   "key",
+			desc:      "successful queries invocation",
+			table:     "queries",
+			key:       "key",
+			attribute: "query_name",
 			getItemOutput: &dynamodb.BatchGetItemOutput{
 				Responses: map[string][]map[string]*dynamodb.AttributeValue{
 					"queries": []map[string]*dynamodb.AttributeValue{
@@ -172,7 +176,7 @@ func TestGet(t *testing.T) {
 			},
 		}
 
-		output, err := c.Get(test.table, test.key)
+		output, err := c.Get(test.table, test.key, test.attribute)
 
 		if len(output) != len(test.output) {
 			t.Errorf("description: %s, output received: %d, expected: %d", test.desc, len(output), len(test.output))

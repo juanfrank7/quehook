@@ -17,7 +17,7 @@ type dynamoDBClient interface {
 // Table provides helper methods for persisting/retrieving/deleting items
 type Table interface {
 	Add(table string, items ...string) error
-	Get(table string, key string) ([]string, error)
+	Get(table string, key, attribute string) ([]string, error)
 	Remove(table string, key string) error
 }
 
@@ -71,7 +71,7 @@ func (c *Client) Add(table string, items ...string) error {
 }
 
 // Get retrieves an item from DynamoDB
-func (c *Client) Get(table string, key string) ([]string, error) {
+func (c *Client) Get(table string, key, attribute string) ([]string, error) {
 	results := []string{}
 
 	requestItems := map[string]*dynamodb.KeysAndAttributes{
@@ -97,15 +97,8 @@ func (c *Client) Get(table string, key string) ([]string, error) {
 			return nil, fmt.Errorf("get item error: %s", err.Error())
 		}
 
-		attributeName := ""
-		if table == "subscribers" {
-			attributeName = "subscriber_target"
-		} else if table == "queries" {
-			attributeName = "query_name"
-		}
-
 		for _, result := range output.Responses[table] {
-			results = append(results, result[attributeName].GoString())
+			results = append(results, result[attribute].GoString())
 		}
 
 		if output.UnprocessedKeys == nil {
