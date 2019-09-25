@@ -21,9 +21,8 @@ html {
 }
 
 h2,
-h3,
 .links {
-  padding-top: 1rem;
+  padding-top: 2rem;
 }
 
 p {
@@ -40,6 +39,14 @@ p {
   width: 100%;
 }
 
+.container-bottom {
+  background-color: rgba(255, 255, 255, 0.8);
+  border: 1px solid #27798C;
+  border-radius: 8px;
+  margin-top: 3rem;
+  padding: 2rem;
+}
+
 .container-lg {
   height: 100%;
   left: 0px;
@@ -47,16 +54,12 @@ p {
   padding: 1rem;
   position: relative;
   top: 0px;
-  width: 34rem;
+  width: 54rem;
   z-index: 100;
 }
 
-.container-sm {
-  background-color: rgba(255, 255, 255, 0.8);
-  border: 1px solid #27798C;
-  border-radius: 15px;
-  margin-top: 8rem;
-  padding: 2rem;
+.container-top {
+  margin-top: 3rem;
 }
 
 .faq {
