@@ -6,21 +6,19 @@
 
 ## :beers: Introduction
 
-<!-- **Quehook** is an application to monitor open source community activity and provide data-driven insights and visibility into the projects. Data is sourced from the publicly available resources on **[GH Archive](http://www.gharchive.org/)** and processed into actionable information including raw event counts, statistics, and forward projections which can be viewed by third-parties like interested contributors or financial supporters. -->
+**Quehook** provides subscribable webhooks to queries on **GitHub** data. New **[BigQuery](https://www.gharchive.org/#bigquery)** queries can be submitted by anyone via the application API endpoints and anyone can subscribe to webhook updates for any submitted queries. These queries are run against the public **[GH Archive](https://www.gharchive.org/)** datasets on an hourly basis every time the archive is updated. This allows for recurring questions regarding the open source community to be regularly answered on the newest available data.
 
 ## :octocat: Usage
 
-<!-- For instructions on how to retrieve data and reports from the application, checkout the **Instructions** section of the public website [here](https://forstmeier.github.io/quehook/). You can use [curl](https://curl.haxx.se/), [Postwoman](https://liyasthomas.github.io/postwoman/), or whatever other tool you want, to make a GET HTTPS request to the application API endpoint. -->
+For instructions on how to submit new queries or to subscribe to hourly updates, checkout the **Usage** section of the public website [here](https://forstmeier.github.io/quehook/). You can use [curl](https://curl.haxx.se/), [Postwoman](https://liyasthomas.github.io/postwoman/), or whatever other tool you want, to make the required requests to the appropriate endpoint.
 
 ## :round_pushpin: Roadmap
 
-<!-- A simple MVP is the initial target for the launch but expanded functionality and a smoother application interface will be rolled out in the immediately subsequent versions. Below is the roadmap (although not necessary in chronological order):
+A simple MVP is the initial target for the launch but expanded functionality and a smoother application interface will be rolled out in the immediately subsequent versions. Below is the roadmap (although not necessary in chronological order):
 
-- [ ] embedded AWS QuickSight dashboard in landing page
-- [ ] "boosted" repo status for projects actively building communities
-- [ ] expanded datapoint availability including percentages, deltas, and original statistics
-- [ ] filtering options for fetching data from application -->
+- [ ] page listing all currently available queries with descriptions
+- [ ] expand report target types (e.g. email, etc)
 
 ## :green_book: FAQ
 
-<!-- Head over to the [FAQ page](https://forstmeier.github.io/quehook/faq) to get more information on the data being used and how it's being used. A changelog will be maintained on the [releases tab](https://github.com/forstmeier/quehook/releases). -->
+Head over to the [FAQ page](https://forstmeier.github.io/quehook/faq) to get more information on the data being used and how it's being used. A changelog will be maintained on the [releases tab](https://github.com/forstmeier/quehook/releases).
