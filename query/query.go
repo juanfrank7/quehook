@@ -137,28 +137,28 @@ func Delete(request events.APIGatewayProxyRequest, t table.Table, s storage.Stor
 	}
 
 	body := struct {
-		query string
+		queryName string
 	}{}
 
 	if err := json.Unmarshal([]byte(request.Body), &body); err != nil {
 		return createResponse(500, "error parsing request body: "+err.Error())
 	}
 
-	output, err := t.Get("queries", body.query, "query_name")
+	output, err := t.Get("queries", body.queryName, "query_name")
 	if err != nil {
 		return createResponse(500, "error getting query: "+err.Error())
 	}
 
 	if len(output) > 0 {
-		if err := s.DeleteFile(body.query); err != nil {
+		if err := s.DeleteFile(body.queryName); err != nil {
 			return createResponse(500, "error deleting query file: "+err.Error())
 		}
 
-		if err := t.Remove("queries", body.query, ""); err != nil {
+		if err := t.Remove("queries", body.queryName, ""); err != nil {
 			return createResponse(500, "error removing query item: "+err.Error())
 		}
 
-		if err := t.Remove("subscribers", body.query, ""); err != nil {
+		if err := t.Remove("subscribers", body.queryName, ""); err != nil {
 			return createResponse(500, "error removing subscribers items: "+err.Error())
 		}
 	}
